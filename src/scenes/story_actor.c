@@ -3,7 +3,7 @@
  *    Description: the story actor and its script's operations
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    14-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -436,7 +436,7 @@ uint16_t story_clear_player(uint16_t fields)
 }
 
 /* Runs its script's next operation; FF ends it */
-void story_actor_next_operation(uint16_t script, uint16_t *p_object, uint16_t *p_operations)
+void CONSOLE_ORIGINAL(story_actor_next_operation)(uint16_t script, uint16_t *p_object, uint16_t *p_operations)
 {
 	uint16_t object = (uint16_t)*p_object;
 	uint16_t operations = (uint16_t)*p_operations;
@@ -1501,7 +1501,7 @@ void story_actor_continue(uint16_t script, uint16_t *p_object, uint16_t *p_opera
 }
 
 /* Runs its children (and the players during a story), and removes it off the screen */
-uint16_t story_actor_finish_frame(uint16_t object, uint16_t u)
+uint16_t CONSOLE_ORIGINAL(story_actor_finish_frame)(uint16_t object, uint16_t u)
 {
 	uint8_t actor_script = 0, count = 0;
 	uint16_t child_slot = 0, x_now = 0, z_now = 0;

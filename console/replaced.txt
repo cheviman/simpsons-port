@@ -18,6 +18,9 @@ enemy_back_off                   # report, Sebas: "hay un enemigo ahí fijo"), n
 ninja_rush_leap          # WIDE: the leaping ninja bounces off the wider screen's sides, the clown on his ball hops on
 clown_on_ball_hop        # in them and Krusty's balloon, knocked up, bounces off them (not off the board's edges, in
 krusty_balloon_fly_up    # the picture's sides' sight)
+story_actor_finish_frame # WIDE: a scene's actor taken off past the wider screen's sides, not in them (stage 1's opening:
+                         # Smithers' goons gone at the cabinet's edge; Sebas, "Desaparece en 4:3")
+story_actor_next_operation   # and a scene's end (its script's FF) waits for its actors leaving the wider screen's sides
 player_check_motion      # WIDE: the players to the wider screen's edges
 player_check_screen_edges
 player_run_all           # the Konami code's REPEAT CHARACTERS (same_character.c): a slot another character plays with

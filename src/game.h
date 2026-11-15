@@ -3256,6 +3256,7 @@ uint16_t story_put_object(uint16_t record);
 void story_actor_run(uint16_t *p_object, uint16_t *p_object_2);
 uint16_t story_clear_player(uint16_t fields);
 void story_actor_next_operation(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
+void CONSOLE_ORIGINAL(story_actor_next_operation)(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
 void story_actor_set_kind(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
 void story_actor_set_animation(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
 void story_actor_set_place(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
@@ -3298,6 +3299,7 @@ uint16_t story_actor_wait_or_presses(uint16_t object, uint16_t script, uint16_t 
 void story_actor_stop(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
 void story_actor_continue(uint16_t script, uint16_t *p_object, uint16_t *p_operations);
 uint16_t story_actor_finish_frame(uint16_t object, uint16_t u);
+uint16_t CONSOLE_ORIGINAL(story_actor_finish_frame)(uint16_t object, uint16_t u);
 uint16_t story_actor_remove(uint16_t object, uint16_t u);
 void story_actor_remove_children(uint16_t *p_parent, uint16_t *p_d);
 uint16_t story_random_player(void);

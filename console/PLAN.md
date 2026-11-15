@@ -550,3 +550,29 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     (find_layer_row: the map's cell at its scroll y plus that offset and the second one) come from rows the console's
     columns (find_layer_column's: no first y offset) do not draw; no single y offset makes a column match. To do it:
     the side columns drawn as the game's rows are, with that offset, and checked in each WIDE.
+- **14-11-2026, WIDE, stage 1's opening: Smithers' goons** (Sebas, on his phone with 1.0.1: "Primer nivel. Cuando se va
+  smithees con los secuaces. Desaparece en 4:3"): a scene's actor is taken off when its screen x leaves 0..018F
+  (story_actor_finish_frame: 0x11 past the board's right edge, out of the cabinet's sight), in WIDE's side; and the
+  scene's end (its own actor's script, object 32 at 5640, at its FF) takes every actor off, which in WIDE came while
+  the goons still ran through the right side (frame 1656 by the menu, the cabinet's gone by 1645).
+  - The fix (wide.c, console/replaced.txt: story_actor_finish_frame and story_actor_next_operation): an actor taken
+    off past the wider screen's sides (beyond_limits, 0 and 018F moved as the others); the scene's end, while one of
+    its actors is out of the cabinet's sight, in the picture's and going out, waits a frame (its script left at the
+    FF, a wait of 1, as the game's waits do), STORY_END_MOST (120) frames at most, the count in the state.
+    tools/decompile.py with the new replaced.txt: src/ as written (game.h and story_actor.c).
+  - Checked (the headless, stage 1 by the menu): the goons taken off out of the picture's sight in 16:10, 16:9 and
+    20:9 (01E0, 0201, 023F); the scene ends 14, 25 and 51 frames later than the cabinet's (the play begins that much
+    later); WIDE OFF the same (0191, 0192, the goon walking in at 1659).
+- **14-11-2026, WIDE, stage 1's restaurant figures** (Sebas, on his phone: "la señora ... estaba haciendo clipping en el
+  salón de video y tiene q ir en el otro local"): moved with the goons that come in (comes_in_type 08), the figure
+  at the restaurant (type 08, kind 87, put in at the scroll's edge with the cook, type 26 kind 0F, at its own place)
+  stood past the side in 20:9, the cook with it at the video arcade's (map 495 for 352; 447 in 16:9). A spawn's type
+  does not say what it is: 08 and 2A are stage 1's shops' figures (kinds 87, 93; enemy_class 0) and goons elsewhere.
+  - The fix (wide.c): 08 and 2A out of comes_in_type; and a moved spawn that is not an enemy after its first two
+    frames (enemy_class not above 0) goes back to its place, with what it put in at its own place meanwhile, unless
+    it has put itself somewhere (settle_moved_spawns, in the state). Checked (the headless, stage 1 by the menu with
+    player 1 walking right): the cook at map 352 in 4:3, 16:9 and 20:9; the start's goon still past the side.
+  - On the way: the play's first frame had the board's limits for its objects (WIDE's sides come at its end), so the
+    start's goon, moved past the side as it was put in, was taken off at its first step (enemy_remove_off_screen
+    with the board's 01C0); that frame's objects now have the sides the play comes with (play_sides_now), its spawns
+    the board's (spawn_as_play_begins).

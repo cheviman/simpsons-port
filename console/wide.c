@@ -663,6 +663,8 @@ static bool debug_on(void)
 	return on != 0;
 }
 
+static void settle_moved_spawns(void);
+
 void console_wide_frame(void)
 {
 	const int side = k_sides[wide_kind()];
@@ -670,6 +672,7 @@ void console_wide_frame(void)
 
 	if (game_step != last_step || game_mode != last_mode)
 		forget_rings();    /* (another step: its maps to come) */
+	settle_moved_spawns();    /* (the spawns moved out of sight that are not enemies: back at their places) */
 	if (floor_camera_seen >= 0 && (int)camera_main_layer != floor_camera_seen)
 		floor_layer = -1;    /* (the camera on another layer: the game's floor columns of it from now on) */
 	floor_camera_seen = camera_main_layer;
@@ -756,10 +759,11 @@ void console_wide_frame(void)
 
 			if (OBJECT(object)->flags)
 				fprintf(stderr, "  object %d: type %02X kind %02X x %04X y %04X x_speed %d behaviour %04X action %02X step %02X "
-					"vitality %02X\n", number, (unsigned)OBJECT(object)->type, (unsigned)OBJECT(object)->kind,
+					"vitality %02X class %d\n", number, (unsigned)OBJECT(object)->type, (unsigned)OBJECT(object)->kind,
 					(unsigned)OBJECT(object)->x, (unsigned)OBJECT(object)->y, (int)OBJECT(object)->x_speed,
 					(unsigned)OBJECT(object)->behaviour, (unsigned)OBJECT(object)->action,
-					(unsigned)OBJECT(object)->action_step, (unsigned)OBJECT(object)->vitality);
+					(unsigned)OBJECT(object)->action_step, (unsigned)OBJECT(object)->vitality,
+					(int)OBJECT(object)->enemy_class);
 		}
 	}
 }
@@ -821,8 +825,20 @@ int wide_crop(const console_picture *frame)
 
 /* ---- the objects past the wider screen's sides ---- */
 
+/* Whether the play begins in this frame (its step's maps drawn whole: what_shows says so before the frame's end, where
+   console_wide_frame sets its sides), and the sides it comes with ('left', 'right': at once). Its spawns are the
+   board's, those that come in by themselves moved out of the wider screen's sight (spawn_as_play_begins) */
+static bool play_begins(int *left, int *right)
+{
+	if (shown_now == SHOW_PLAY || game_step != last_step || game_mode != last_mode || what_shows() != SHOW_PLAY)
+		return false;
+	play_sides(k_sides[wide_kind()], left, right);
+	return *left > 0 || *right > 0;
+}
+
 /* The picture's sides in the game's play now (the frame to be drawn next; a side may be less than none), 0 out of a
-   stage's play */
+   stage's play; in the frame the play begins, the sides it comes with (a goon moved out of the wider screen's sight
+   as it was put in was taken off at its first step there, past the board's limits) */
 static void play_sides_now(int *left, int *right)
 {
 	if (shown_now == SHOW_PLAY)
@@ -830,19 +846,8 @@ static void play_sides_now(int *left, int *right)
 		*left = wide_left_now;
 		*right = wide_right_now;
 	}
-	else
+	else if (!play_begins(left, right))
 		*left = *right = 0;
-}
-
-/* Whether the play begins in this frame (its step's maps drawn whole: what_shows says so before the frame's end, where
-   console_wide_frame sets its sides), and the sides it comes with ('left', 'right': at once). Its frame is the board's
-   (play_now: none), but for the spawns it puts in out of the cabinet's sight (spawn_stage_objects) */
-static bool play_begins(int *left, int *right)
-{
-	if (shown_now == SHOW_PLAY || game_step != last_step || game_mode != last_mode || what_shows() != SHOW_PLAY)
-		return false;
-	play_sides(k_sides[wide_kind()], left, right);
-	return *left > 0 || *right > 0;
 }
 
 static void play_now(int *left, int *right)
@@ -889,8 +894,8 @@ static bool comes_in_type(uint8_t type)
 	case 0x01:    /* the goon with a hat */
 	case 0x02:    /* the fireman goon */
 	case 0x03:    /* the goon that grabs close */
-	case 0x08:    /* the goon with an umbrella floating down (where it lands, out of the cabinet's sight) */
-	case 0x0A:    /* the goon with an umbrella */
+	case 0x0A:    /* the goon with an umbrella (not 08 nor 2A: stage 1's figures at its shops take them, kinds 87 and 93,
+	                 the restaurant's cook put in by the first at its place) */
 	case 0x0C:    /* the striker goon */
 	case 0x0D:    /* the goon with a shovel */
 	case 0x0E:    /* the fat goon */
@@ -900,7 +905,6 @@ static bool comes_in_type(uint8_t type)
 	case 0x25:    /* the goon rushing in */
 	case 0x28:    /* the fat goon walking in */
 	case 0x29:    /* the goon with a shovel rushing in */
-	case 0x2A:    /* the goon with an umbrella rushing in */
 	case 0x2E:    /* the goon with a bomb running in */
 	case 0x34:    /* the striker goon rushing in */
 	case 0xE6:    /* the fat goon that grabs and body-slams */
@@ -954,6 +958,81 @@ static uint16_t past_left_side(uint16_t placed, int side_left, int side_right, i
 
 #define OBJECTS             33
 #define FIRST_ENEMY         14           /* (the objects the enemies' lists run: object_lists.c) */
+#define MOVED_MOST          16
+#define MOVED_FRAMES        2            /* (the frames a moved spawn has to show it is an enemy) */
+
+#define MOVED_DRIFT         8            /* (a moved spawn's own steps meanwhile: farther, it put itself somewhere) */
+
+/* The spawns moved out of the wider screen's sight, till they show what they are: the type of a spawn does not say it
+   (stage 1's figures at its shops take types the goons that come in take elsewhere: moved, the restaurant's cook
+   stood at the video arcade's in 20:9; Sebas, "tiene q ir en el otro local"). One that is not an enemy after its first
+   frames (its enemy_class: the goons' 1) goes back to its place, the board's, and so does what it put in at its own
+   place meanwhile (the cook, by the figure beside her); one that has put itself somewhere stays there */
+static struct
+{
+	uint16_t object;
+	int16_t moved, x;    /* (how far, and where it was put) */
+	uint8_t frames;
+} moved_spawns[MOVED_MOST];
+static int moved_count;
+static uint32_t objects_in_use;    /* (the enemies' objects in use at the last frame's end, bit n object n) */
+
+static void note_moved(uint16_t object, int moved)
+{
+	if (moved && moved_count < MOVED_MOST)
+	{
+		moved_spawns[moved_count].object = object;
+		moved_spawns[moved_count].moved = (int16_t)moved;
+		moved_spawns[moved_count].x = (int16_t)OBJECT(object)->x;
+		moved_spawns[moved_count].frames = 0;
+		moved_count++;
+	}
+}
+
+/* At each frame's end: what a moved spawn put in at its place this frame, moved with it; a moved spawn that is an
+   enemy kept where it was moved, one that is not back at its place after MOVED_FRAMES (or gone: forgotten) */
+static void settle_moved_spawns(void)
+{
+	uint32_t in_use = 0;
+	int kept = 0, count = moved_count;
+
+	for (int number = FIRST_ENEMY; number < OBJECTS; number++)
+	{
+		const uint16_t object = (uint16_t)OBJECT_ADDRESS(number);
+
+		if (OBJECT(object)->flags == 0u)
+			continue;
+		in_use |= 1u << number;
+		if (objects_in_use & (1u << number))
+			continue;
+		for (int index = 0; index < count; index++)
+			if (moved_spawns[index].object != object && moved_spawns[index].x == (int16_t)OBJECT(object)->x
+				&& moved_count < MOVED_MOST)
+			{
+				moved_spawns[moved_count] = moved_spawns[index];
+				moved_spawns[moved_count].object = object;
+				moved_count++;
+				break;
+			}
+	}
+	objects_in_use = in_use;
+	for (int index = 0; index < moved_count; index++)
+	{
+		const uint16_t object = moved_spawns[index].object;
+		const int x = (int16_t)OBJECT(object)->x;
+
+		if (OBJECT(object)->flags == 0u || (int8_t)OBJECT(object)->enemy_class > 0)
+			continue;
+		if (++moved_spawns[index].frames < MOVED_FRAMES)
+		{
+			moved_spawns[kept++] = moved_spawns[index];
+			continue;
+		}
+		if (x - moved_spawns[index].x <= MOVED_DRIFT && moved_spawns[index].x - x <= MOVED_DRIFT)
+			OBJECT(object)->x = (uint16_t)(x - moved_spawns[index].moved);
+	}
+	moved_count = kept;
+}
 
 /* The play's first frame (play_begins): the board's spawns, then those that come in by themselves that the cabinet
    does not show (under its black edges or past them) moved out of the wider screen's sight, as its sides come at once
@@ -979,6 +1058,7 @@ static void spawn_as_play_begins(int left, int right)
 				OBJECT(object)->x = past_right_side((uint16_t)x, MOST(right, 0), left, right);
 			else if (x + SIGHT_HALF <= OBJECT_LEFT + fixed_first && left + fixed_first > 0)
 				OBJECT(object)->x = (uint16_t)(x - left - fixed_first);
+			note_moved(object, (int16_t)OBJECT(object)->x - x);
 		}
 		note_spawn(object, left, right);
 	}
@@ -1024,15 +1104,17 @@ void spawn_stage_objects(void)
 	uint16_t enemies_speed = 0, camera_position = 0, spawn_edge = 0, scroll_position = 0, spawn_place = 0, compared_scroll = 0, spawn_stage_x = 0, camera_offset = 0, spawn_screen_x = 0, placed_x = 0, left_side_x = 0, signed_steps = 0, height_pixels = 0, negated_height = 0, height_on_screen = 0, spawn_y = 0;
 	int side_left, side_right, picture_left, picture_right;
 
+	if (in_cemetery == 0u && play_begins(&picture_left, &picture_right))
+	{
+		spawn_as_play_begins(picture_left, picture_right);    /* (the play's first frame: the board's spawns) */
+		return;
+	}
 	play_sides_now(&picture_left, &picture_right);
 	side_left = MOST(picture_left, 0);
 	side_right = MOST(picture_right, 0);
 	if (!side_left && !side_right)
 	{
-		if (in_cemetery == 0u && play_begins(&picture_left, &picture_right))
-			spawn_as_play_begins(picture_left, picture_right);
-		else
-			original_spawn_stage_objects();
+		original_spawn_stage_objects();
 		return;
 	}
 	enemy_speed = enemy_speeds_by_rank[(int8_t)rank];
@@ -1116,7 +1198,10 @@ void spawn_stage_objects(void)
 			OBJECT(spawned)->x = left_side_x;
 		}
 		else if (in_cemetery == 0u && comes_in_type(kind))
+		{
 			OBJECT(spawned)->x = past_right_side(spawn_screen_x, side_right, picture_left, picture_right);    /* (WIDE: out of its sight) */
+			note_moved(spawned, (int16_t)OBJECT(spawned)->x - (int16_t)spawn_screen_x);
+		}
 		OBJECT(spawned)->x_fraction = 0u;
 		height_steps = SPAWN(spawn)->y;
 		signed_steps = (int8_t)height_steps;
@@ -1776,6 +1861,279 @@ void krusty_balloon_fly_up(uint16_t object)
 	OBJECT(object)->krusty_balloon.squash_step = 0u;
 }
 
+#define STORY_OBJECT        32           /* the scene's own actor (5640): its end takes every actor off */
+#define STORY_END_MOST      120          /* (the frames a scene's end waits at most) */
+
+static int story_end_waits;    /* (the frames the scene's end has waited) */
+
+/* Whether an actor of the scene is leaving through the wider screen's sides: out of the cabinet's sight, in the
+   picture's, and going out (then the scene's end waits a frame, STORY_END_MOST at most) */
+static bool story_actors_leaving(void)
+{
+	int picture_left, picture_right;
+
+	play_sides_now(&picture_left, &picture_right);
+	if (story_end_waits < STORY_END_MOST)
+		for (int number = 0; number < STORY_OBJECT; number++)
+		{
+			const uint16_t object = (uint16_t)OBJECT_ADDRESS(number);
+			const int x = (int16_t)OBJECT(object)->x, speed = OBJECT(object)->x_speed;
+
+			if (OBJECT(object)->flags == 0u)
+				continue;
+			if ((speed > 0 && x - SIGHT_HALF >= OBJECT_RIGHT - fixed_first && x - SIGHT_HALF < OBJECT_RIGHT + picture_right)
+				|| (speed < 0 && x + SIGHT_HALF <= OBJECT_LEFT + fixed_first && x + SIGHT_HALF > OBJECT_LEFT - picture_left))
+			{
+				story_end_waits++;
+				return true;
+			}
+		}
+	story_end_waits = 0;
+	return false;
+}
+
+/* The game's story_actor_finish_frame (scenes/story_actor.c): a scene's actor taken off the screen past the wider
+   screen's sides, not in them (stage 1's opening: Smithers' goons gone where the cabinet's screen ended; Sebas,
+   "Desaparece en 4:3") */
+uint16_t story_actor_finish_frame(uint16_t object, uint16_t u)
+{
+	uint8_t actor_script = 0, count = 0;
+	uint16_t child_slot = 0, x_now = 0, z_now = 0;
+	uint8_t child_slots_left = 0;
+	uint16_t saved_actor = 0, saved_child_slot = 0;
+	uint8_t children_left = 0, players_signal = 0, parameter = 0;
+	uint16_t child_slot_at = 0, slot_child = 0, actor_x = 0, z = 0;
+	int side_left, side_right;
+
+	play_now(&side_left, &side_right);
+	if (!side_left && !side_right)
+		return original_story_actor_finish_frame(object, u);
+	if ((int16_t)object < 0x4A40 || (int16_t)object > 0x4CE0)
+	{
+		count = 0xBu;
+		saved_actor = object;
+		child_slot = object + 0x43u;
+		do
+		{
+			child_slots_left = count;
+			child_slot_at = child_slot;
+			child_slot = child_slot_at + 2u;
+			slot_child = mem_read16(child_slot_at);
+			object = slot_child;
+			if (slot_child != 0u)
+			{
+				saved_child_slot = child_slot;
+				story_actor_run(&object, &u);
+				child_slot = saved_child_slot;
+			}
+			children_left = child_slots_left;
+			count = children_left - 1u;
+		} while (children_left != 1u);
+		object = saved_actor;
+	}
+	if (object == OBJECT_ADDRESS(32))
+	{
+		players_signal = io_read8(players_all_idle);
+		if (players_signal != 0u)
+		{
+			saved_actor = object;
+			object = OBJECT_ADDRESS(0);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(1);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(2);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(3);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(4);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(5);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(6);
+			story_actor_run(&object, &u);
+			object = OBJECT_ADDRESS(7);
+			story_actor_run(&object, &u);
+			object = saved_actor;
+		}
+	}
+	if (object == OBJECT_ADDRESS(32))
+		return u;
+	parameter = OBJECT(object)->parameter;
+	actor_script = parameter;
+	if (actor_script == 0x21u || actor_script == 0xDu)
+		return u;
+	actor_x = OBJECT(object)->x;
+	x_now = actor_x;
+	if (!beyond_limits((int16_t)x_now, 0, 0x18F))    /* (WIDE: its sides) */
+	{
+		z = OBJECT(object)->z;
+		z_now = z;
+		if ((int16_t)z_now < 0x280 && (int16_t)z_now > -0x200)
+			return u;
+	}
+	return story_actor_remove(object, u);
+}
+
+/* The game's story_actor_next_operation (scenes/story_actor.c): a scene's end (the script's FF of its own actor,
+   object 32, which takes every actor off) waits while one of its actors leaves through the wider screen's
+   sides, as the cabinet's had left its screen by then (stage 1's opening: Smithers' goons running off with
+   Maggie, gone in the picture's right side; Sebas, "Desaparece en 4:3") */
+void story_actor_next_operation(uint16_t script, uint16_t *p_object, uint16_t *p_operations)
+{
+	uint16_t object = (uint16_t)*p_object;
+	uint16_t operations = (uint16_t)*p_operations;
+	uint8_t operation = 0;
+	uint16_t operation_at = 0;
+	int side_left, side_right;
+
+	play_now(&side_left, &side_right);
+	if (!side_left && !side_right)
+	{
+		story_end_waits = 0;
+		original_story_actor_next_operation(script, p_object, p_operations);
+		return;
+	}
+	operation_at = script;
+	script = operation_at + 1u;
+	operation = mem_read8(operation_at);
+	if (operation == 0xFFu)
+	{
+		if (object == OBJECT_ADDRESS(STORY_OBJECT) && story_actors_leaving())
+		{
+			OBJECT(object)->story_actor.wait = 1u;    /* (WIDE: the scene's end again at the next frame) */
+			OBJECT(object)->story_actor.script = operation_at;
+			operations = story_actor_finish_frame(object, operations);
+		}
+		else
+			operations = story_actor_remove(object, operations);
+	}
+	else
+	{
+		operations = story_actor_operations_ADDRESS;
+		switch ((int8_t)(uint8_t)((uint32_t)operation << 1))
+		{
+		case 0:
+			story_actor_set_kind(script, &object, &operations);
+			break;
+		case 2:
+			story_actor_set_animation(script, &object, &operations);
+			break;
+		case 4:
+			story_actor_set_place(script, &object, &operations);
+			break;
+		case 6:
+			story_actor_set_speeds(script, &object, &operations);
+			break;
+		case 8:
+			story_actor_set_accelerations(script, &object, &operations);
+			break;
+		case 10:
+			story_actor_walk_to(script, &object, &operations);
+			break;
+		case 12:
+			leftover_y = script;
+			story_actor_put_in(&object, &operations);
+			break;
+		case 14:
+			operations = story_actor_wait(object, script, operations);
+			break;
+		case 16:
+			story_actor_set_accelerations_xy(script, &object, &operations);
+			break;
+		case 18:
+			story_actor_line_up_players(script, &object, &operations);
+			break;
+		case 20:
+			story_actor_set_hit_box(script, &object, &operations);
+			break;
+		case 22:
+			story_actor_play_sound(script, &object, &operations);
+			break;
+		case 24:
+			operations = story_actor_halt(object, script, operations);
+			break;
+		case 26:
+			story_actor_set_attributes(script, &object, &operations);
+			break;
+		case 28:
+			story_actor_toggle_airborne(script, &object, &operations);
+			break;
+		case 30:
+			story_actor_walk_to_partner(script, &object, &operations);
+			break;
+		case 32:
+			operations = story_actor_wait_for_object(object, script);
+			break;
+		case 34:
+			story_actor_wait_for_players(script, &object, &operations);
+			break;
+		case 36:
+			story_actor_random_player_faces(script, &object, &operations);
+			break;
+		case 38:
+			story_actor_set_players_animation(script, &object, &operations);
+			break;
+		case 40:
+			story_actor_face_object(script, &object, &operations);
+			break;
+		case 42:
+			operations = story_actor_wait_for_height(object, script, operations);
+			break;
+		case 44:
+			leftover_y = script;
+			story_actor_put_in_child(&object, &operations);
+			break;
+		case 46:
+			operations = story_actor_wait_for_camera(object, script, operations);
+			break;
+		case 48:
+			story_actor_set_variable(script, &object, &operations);
+			break;
+		case 50:
+			story_actor_drop_players_held(script, &object, &operations);
+			break;
+		case 52:
+			story_actor_walk_to_without_turning(script, &object, &operations);
+			break;
+		case 54:
+			operations = story_actor_wait_for_x(object, script, operations);
+			break;
+		case 56:
+			story_actor_place_players(script, &object, &operations);
+			break;
+		case 58:
+			story_actor_start_absent_players(script, &object, &operations);
+			break;
+		case 60:
+			story_actor_play_kind_sound(script, &object, &operations);
+			break;
+		case 62:
+			operations = story_actor_wait_for_floor(object, script, operations);
+			break;
+		case 64:
+			story_actor_play_sound_if_player(script, &object, &operations);
+			break;
+		case 66:
+			story_actor_player_speaks(script, &object, &operations);
+			break;
+		case 68:
+			story_actor_toggle_repeat_sound(script, &object, &operations);
+			break;
+		case 70:
+			story_actor_toggle_flag_08(script, &object, &operations);
+			break;
+		case 72:
+			operations = story_actor_wait_or_presses(object, script, operations);
+			break;
+		case 74:
+			story_actor_stop(script, &object, &operations);
+			break;
+		}
+	}
+	*p_object = object;
+	*p_operations = operations;
+}
+
 /* ---- the players at the wider screen's edges ---- */
 
 /* The game's player_check_motion (players/motion.c), its limits at the screen's edges moved by WIDE's sides: the same
@@ -2106,6 +2464,9 @@ void wide_power_on(void)
 	shown_now = shown_drawn = SHOW_BOARD;
 	wide_left_now = wide_right_now = 0;
 	floor_layer = floor_camera_seen = -1;
+	story_end_waits = 0;
+	moved_count = 0;
+	objects_in_use = 0;
 }
 
 /* ---- a save state's part (states.c) ---- */
@@ -2122,6 +2483,10 @@ void wide_state(simpsons_state *state)
 	simpsons_state_bytes(state, rings, sizeof(rings));
 	simpsons_state_bytes(state, &floor_layer, sizeof(floor_layer));
 	simpsons_state_bytes(state, &floor_camera_seen, sizeof(floor_camera_seen));
+	simpsons_state_bytes(state, &story_end_waits, sizeof(story_end_waits));
+	simpsons_state_bytes(state, moved_spawns, sizeof(moved_spawns));
+	simpsons_state_bytes(state, &moved_count, sizeof(moved_count));
+	simpsons_state_bytes(state, &objects_in_use, sizeof(objects_in_use));
 	simpsons_state_bytes(state, &fixed_first, sizeof(fixed_first));
 	simpsons_state_bytes(state, &fixed_last, sizeof(fixed_last));
 	simpsons_state_bytes(state, &last_step, sizeof(last_step));
