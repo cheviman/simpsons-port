@@ -494,6 +494,8 @@ void attract(uint16_t u)
 			console_lan_game_over();    /* (a LAN game's game over: this device's own settings, the page) */
 		if (console_lan_back_to_page())
 			console.page = PAGE_LAN;    /* (a LAN game over, left, or its host gone: MULTIPLAYER again) */
+		else if (!restarting && mode == MODE_INTRO)
+			console.choice = menu_intro_line();    /* (INTRO's end: the menu at its line) */
 		else if (!restarting && mode != MODE_NONE)
 		{
 			console.page = PAGE_MR_PLOW;    /* (a mode's game over: MR. PLOW MODE's page at its line, its lines in */

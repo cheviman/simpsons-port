@@ -1,11 +1,12 @@
 /**
  *    Name:        menu.c
- *    Description: the console's menus over the attract mode: the menu (ARCADE, MR. PLOW MODE, OPTIONS, EXIT),
+ *    Description: the console's menus over the attract mode: the menu (ARCADE, MR. PLOW MODE, MULTIPLAYER, INTRO,
+ *                 OPTIONS, EXIT),
  *                 MR. PLOW MODE's page, OPTIONS with VIDEO and CONTROLS, the Konami code's page, and the pause's
  *                 picture
  *    Version:     0.1.0
  *    Created:     13-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    15-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -14,7 +15,9 @@
  *    line and "@cheviman" under them (Sebas: "para el menu, usemos la tele, que tiene de titulos para presentarlo");
  *    the other pages write over the TV darkened. All of them with the game's own letters (draw.c). ARCADE starts the
  *    arcade game at home for the player who picks it: a coin, then the character choice on the game's portraits
- *    (characters.c); the others come in with START. OPTIONS changes the cabinet's settings by the test mode's names (8-3 DIFFICULTY,
+ *    (characters.c); the others come in with START. INTRO plays the story before stage 1 and comes back (modes.c),
+ *    and so does the menu left alone IDLE_FRAMES (the players' issue 8; Sebas: "si esta inactivo, que meta una
+ *    intro"). OPTIONS changes the cabinet's settings by the test mode's names (8-3 DIFFICULTY,
  *    8-2 NUMBER OF PLAYERS as LIVES, 8-4 SOUND IN ATTRACT MODE as DEMO SOUND, 8-5 VIDEO SCREEN FLIP as SCREEN), which
  *    go into the game when OPTIONS closes; CONTINUES (ARCADE's, 0 to 9 or UNLIMITED), VIDEO, VOLUME and SOUND (MONO,
  *    the board's, or STEREO) the port's. The
@@ -45,8 +48,8 @@
 #define HEADING_COLOUR      0xFFD840u
 #define SIGNATURE_COLOUR    0xD0D0D0u
 #define COPYRIGHT_COLOUR    0xD0D0D0u
-#define MENU_Y              96           /* the menu's lines, on the TV's screen under the title's logo */
-#define ITEM_STEP           12
+#define MENU_Y              90           /* the menu's lines, on the TV's screen under the title's logo (six: */
+#define ITEM_STEP           11           /* their copyright and signature in the screen, INTRO among them) */
 #define COPYRIGHT           "[ 1991 KONAMI"    /* the title's copyright line, Konami's (game text 2's: '[' its
                                                   copyright sign), under the menu */
 #define COPYRIGHT_Y         (MENU_Y + MENU_ITEMS * ITEM_STEP + 4)
@@ -62,15 +65,16 @@
 #define LINE_LEFT           40
 #define LINE_RIGHT          (SCREEN_WIDTH - 40)
 #define STARTING_FRAMES     600          /* a game that has not started by then: back to the menu */
+#define IDLE_FRAMES         1776         /* the menu left alone this long (30 seconds): INTRO plays */
 #define PAUSE_Y             76           /* the pause's PAUSE, and its lines under it */
 #define PAUSE_LINES_Y       108
 #define PAUSE_LINE_STEP     14
 
 /* (a device's lines past their lists, never chosen: SIMPSONS_SYSTEM_EXIT, SIMPSONS_HANDHELD) */
 #ifdef SIMPSONS_SYSTEM_EXIT
-enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_OPTIONS, MENU_ITEMS, MENU_EXIT = 100 };
+enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_INTRO, MENU_OPTIONS, MENU_ITEMS, MENU_EXIT = 100 };
 #else
-enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_OPTIONS, MENU_EXIT, MENU_ITEMS };
+enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_INTRO, MENU_OPTIONS, MENU_EXIT, MENU_ITEMS };
 #endif
 enum { PLOW_FREE_PLAY, PLOW_BOSS_RUSH, PLOW_BONUS_GAMES, PLOW_FRANK_GRIMES, PLOW_BACK, PLOW_ITEMS };    /* (the
 	modes' order: MODE_FREE_PLAY on, console.c's way back to the page) */
@@ -88,10 +92,12 @@ enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO
 enum { KONAMI_STAGE, KONAMI_LIVES, KONAMI_HEALTH, KONAMI_REPEATS, KONAMI_START, KONAMI_BACK, KONAMI_ITEMS };
 
 #ifdef SIMPSONS_SYSTEM_EXIT
-static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "OPTIONS" };
+static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "INTRO", "OPTIONS" };
 #else
-static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "OPTIONS", "EXIT" };
+static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "INTRO", "OPTIONS",
+	"EXIT" };
 #endif
+static int idle_frames;    /* the menu's frames with nothing pressed (IDLE_FRAMES: INTRO) */
 static const char *const plow_items[PLOW_ITEMS] = { "FREE PLAY", "BOSS RUSH", "BONUS GAMES", "FRANK GRIMES LIFE",
 	"BACK" };
 /* (what the chosen one is, under the lines) */
@@ -182,6 +188,9 @@ static void menu_page(uint32_t pressed)
 			break;
 		case MENU_LAN:
 			open_page(PAGE_LAN, 0);
+			break;
+		case MENU_INTRO:
+			intro_start(console.last_presser);
 			break;
 		case MENU_OPTIONS:
 			open_page(PAGE_OPTIONS, 0);
@@ -703,7 +712,15 @@ bool console_controls_defaults(void)
 static void starting_page(void)
 {
 	if (console.page_frames > STARTING_FRAMES)
-		open_page(PAGE_MENU, MENU_ARCADE);
+	{
+		open_page(PAGE_MENU, console.mode == MODE_INTRO ? MENU_INTRO : MENU_ARCADE);
+		console.mode = MODE_NONE;    /* (INTRO's black off) */
+	}
+}
+
+int menu_intro_line(void)
+{
+	return MENU_INTRO;
 }
 
 void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS])
@@ -734,6 +751,14 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 			console.choice = step_value(console.choice, -1, 0, lines - 1);
 		if (pressed & ACTION_BIT(ACTION_DOWN))
 			console.choice = step_value(console.choice, 1, 0, lines - 1);
+	}
+	/* (the menu left alone, nothing pressed for IDLE_FRAMES: INTRO, Sebas: "si esta inactivo, que meta una intro") */
+	idle_frames = page == PAGE_MENU && !pressed ? idle_frames + 1 : 0;
+	if (idle_frames >= IDLE_FRAMES)
+	{
+		idle_frames = 0;
+		intro_start(0);
+		return;
 	}
 	switch (page)
 	{

@@ -536,6 +536,34 @@ only by that port's CI.
 - [ ] **The ports move to it**, one at a time, each taking its own copy out: The Simpsons first, then tmnt-port,
       outrunners-port and segasonic-port, each in a session of its own, with its release's notes.
 
+## H. The project's quality: the Recomp Standards still open
+
+Sebas, 15-11-2026, on RecompLauncher's report: "lo de sdl3 y retroachievements, ponelos en plan, porque es calidad de
+proyecto". What RecompLauncher's Recomp Standards ask that the port does not do yet (the small ones were done the same
+day: What was done, 15-11-2026).
+
+- [ ] **SDL3.** The window port on SDL3 instead of SDL2 (SDL3's game controllers: more of them known and named alike,
+      gyro, touchpads, lights; what RecompLauncher builds on). Every platform's: ports/sdl2 (the window, the sound, the
+      controls, the touch screen), the devices' builds (the Switch's devkitPro SDL, Android's, iOS's) and the Anbernic's
+      stub (its firmware's SDL is 2.0.12: it keeps SDL2, or a layer between). Large: the four ports share the shell, so
+      it is one move for all of them, tmnt-port first as the model. Check: every device's build, the scenarios through
+      the window's headless runs, the controllers' mappings counted as in ports-dispositivos point 3.
+- [ ] **Recomp Achievements** (github.com/elripalda/RecompAchievements): achievements, Beaten and Mastered, the
+      leaderboards, through its small C library, which reports unlocks to RecompLauncher. The rules on the board's work
+      RAM (the stages cleared, each boss, the ending: Beaten; the game on one credit, the bonus games' best, BOSS RUSH
+      and FRANK GRIMES LIFE in The Simpsons Mr. Plow Edition: Mastered), read after each frame as the LAN reads its
+      state. Medium. Check: a scripted run through each rule's moment unlocks it once, and the scenarios stay identical
+      (it reads, it never writes).
+- [ ] **Button prompts for PlayStation controllers** (RecompLauncher's RECOMPLAUNCHER_PAD, and SDL's controller type
+      for everyone): CONTROLS shows Xbox's letters only; Kenney's Input Prompts have the PlayStation set, a second sheet
+      chosen by the controller's type. Medium.
+- [ ] **A ROM set as .7z on the devices and in the makers**: the computers' games read simpsons.7z (rom_set_7z.c); the
+      Switch, Android, iOS and Anbernic games look for simpsons.zip in their folder, and Simpsons NSP, APK and Anbernic
+      take a .zip. Small to medium (the same reader, in their builds).
+- [ ] **The Simpsons Arcade Game's own tile in RecompLauncher**: its recomplauncher.json's `games` adds arguments to one
+      program, and the two games are two executables. Waits on the launcher (a program for each game), or a choice of
+      the game by an argument.
+
 ## What was done
 
 - **13-11-2026**: the clone and this plan (Sebas: "arranquemos el port").
@@ -609,3 +637,49 @@ only by that port's CI.
   stage 1 goon (a player's report), the sides' floor, the bounces and stage 3's climb (console/PLAN.md); version
   1.0.1 (CMakeLists.txt), docs/releases/v1.0.1.md, testing.md's list emptied; main fast-forwarded to testing, the
   tag v1.0.1 once the CI is green on that commit. Not tried on a device.
+- **15-11-2026, RecompLauncher** (Sebas: "Add RecompLauncher support to this recomp", with recomplauncher.com's
+  agent guide): docs/package/recomplauncher.json in the computers' packages (simpsons_package, the workflow's Linux
+  and macOS step), with which RecompLauncher installs The Simpsons Mr. Plow Edition from a release, asks for the ROM
+  set (simpsons.zip or its folder), makes the pack with no window (`--prepare --game=`), starts the game with
+  `--game=`, shows 14 of OPTIONS' settings (simpsons.ini) on the game's page and backs up the high scores, the state,
+  the settings, the controls and the EEPROM. The computers' games take `--game ROMSET` (first_run_found: as one
+  dropped on the window, or a folder with simpsons.zip in it) and `--prepare` (the pack alone, its progress on the
+  standard output, 0 or 2); the console's simpsons.ini reader takes "key = value" too. The README's badge. Checked:
+  the schema (0 errors), the Windows games (MSVC, no warnings), `--prepare` with the set (0), another zip (2), the
+  folder (0), no set with and without the pack (0, 2); the game with `--game=` and no pack (the pack made, started)
+  and with no arguments; "volume = 0" silent and "volume = 10" as "volume=10" (SDL's disk audio); the 25 scenarios
+  identical. Not tried in RecompLauncher itself: the ROM set is asked for with its schema's `inputs` and
+  `{input:rom}`, whose guide (SETUP-INPUTS.md) is not public.
+- **15-11-2026, the Recomp Standards and two players' issues** (Sebas: "preparemos esas recomendaciones, y tenemos un
+  par de bugs que arreglar", the issues 14 and 12; "ponelos en plan" for SDL3 and Recomp Achievements: H above):
+  - **Issue 14, Bart's shirt** (console/bart_shirt.c): Bart falling into the gorge at stage 5's end and in its water
+    (the scenery's kind 10 in the family's colour: its six sprites of him; its splashes left light blue), the walk to
+    Channel 6's lower shirt (a plain tile, 6201, outside its rule's range), and Maggie standing (sprite 5974), which
+    Bart's own lists draw too (02's 6130, the far family's 7F76, 39's): never marked, her onesie light blue. Found by
+    scanning the console's frames of stages 4-8, the stories, the attract mode and bonus 2 for the light blue left in
+    the play area, and the pixels the shirt changes, cropped and seen. Checked: the gorge and Channel 6's frames have no
+    light blue left, and every pixel that differs from the shirt off is the light blue turned orange (1191 of 1191);
+    Maggie's two cells are drawn by those three lists alone (all the kinds' lists searched). Not seen: Bart picking
+    Maggie up in a run (the scenarios' rescuer is Marge).
+  - **Issue 12, high-DPI Windows** (main.c): SDL_HINT_WINDOWS_DPI_SCALING, the game DPI-aware, its windows in points and
+    its pictures in the screen's pixels (present draws in the renderer's output); the first run's window keeps its
+    layout (a logical size, whole times). The log says the window and its picture's pixels, and what the settings made
+    of it. Checked at 100 % only (the same sizes as before); not on a scaled desktop.
+  - **Logs** (main.c, log_into): the last three runs kept (FILE_NAME.log, .1.log, .2.log), on Linux and macOS too when
+    the standard error is not a terminal. Checked on Windows: four starts from no console leave three logs.
+  - **portable.txt** on Linux and macOS: what the game keeps beside it (beside the .app). Not run there (WSL's build
+    below compiles it).
+  - **simpsons.ini commented**: each key with what it takes (the reader skips the comments, and takes "key = value").
+  - **RecompLauncher's Big Picture** (RECOMPLAUNCHER_MODE=bigpicture): the game full screen that time, simpsons.ini's
+    window kept. Checked with SDL's dummy video: full screen 1024 x 768, the file unchanged; a window in desktop mode.
+  - **The Simpsons Arcade Game's quit with a controller**: Back and Start held together two seconds. Not tried with a
+    controller.
+  - **A ROM set as .7z** (rom_set_7z.c, the LZMA SDK 26.06's 7z decoder in ports/sdl2/lzma, public domain, its notice
+    in the packages' licenses): dropped, beside the game, in a folder given, or with --game; its files put beside the
+    pack, read as a set's folder, taken away. Checked: LZMA2 and LZMA archives make the zip's pack byte for byte, a
+    folder with simpsons.7z and one beside the game too, another 7z is refused (2) and leaves nothing.
+  - recomplauncher.json: the .7z, portable.txt and the logs' folder. Not done: the diamond Sebas saw changed (not
+    found in the scans).
+  - **Barney's colours** (Sebas: "hay que arreglar tmb el tema de los colores de barney, que estan los de season1"):
+    his hair in brown tried and left yellow ("dejá el pelo amarillo y cambiale el color de la remera y listo"), his
+    shirt in #D46F63: console/PLAN.md's What was done.

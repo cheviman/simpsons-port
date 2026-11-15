@@ -87,7 +87,8 @@ jobs:
       # what a player runs (no headless runs, no build leftovers, no devices' tools), as the build packs it locally
       # on Windows (simpsons_package, CMakeLists.txt): the folder simpsons with The Simpsons Arcade Game and The Simpsons Mr. Plow Edition
       # (the .apps on macOS, signed ad hoc: with no certificate macOS offers to open them anyway, where a bundle
-      # signed in part is "damaged"), their pictures beside them on Linux, the package's README.txt, the project's
+      # signed in part is "damaged"), their pictures beside them on Linux, the package's README.txt and
+      # recomplauncher.json (RecompLauncher's setup, start and settings for The Simpsons Mr. Plow Edition), the project's
       # LICENSE.txt and licenses/ (MAME's and ymfm's: the board's video and sound follow their behavior and tables;
       # SDL2's and SDL_GameControllerDB's, zlib; Kenney's, CC0: the first run's letters, the controls' pictures).
       # Linux's in a tar of our own: the artifacts' zip loses the executables' permissions
@@ -112,7 +113,9 @@ jobs:
           done
           cp LICENSE dist/simpsons/LICENSE.txt
           cp docs/package/README.txt dist/simpsons/README.txt
+          cp docs/package/recomplauncher.json dist/simpsons/recomplauncher.json
           cp docs/package/licenses/MAME.txt dist/simpsons/licenses/MAME.txt
+          cp docs/package/licenses/LZMA-SDK.txt dist/simpsons/licenses/LZMA-SDK.txt
           cp tools/core/konami/reference/ymfm/LICENSE dist/simpsons/licenses/ymfm.txt
           cp build/cmake/_deps/sdl2-src/LICENSE.txt dist/simpsons/licenses/SDL2.txt
           cp ports/sdl2/controllerdb/LICENSE dist/simpsons/licenses/SDL_GameControllerDB.txt

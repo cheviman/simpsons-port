@@ -4,9 +4,9 @@
  *                 play and on every other screen, the layers' columns the game does not draw that far drawn from the
  *                 same maps, the players' boxes kept in the middle, and the objects coming in, going out and walking
  *                 past the wider screen's sides
- *    Version:     0.2.0
+ *    Version:     0.4.0
  *    Created:     13-11-2026
- *    Modified:    14-11-2026
+ *    Modified:    15-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -34,9 +34,11 @@
  *    brings the map, moving by WIDE_PAN pixels a frame (tmnt-port's, Sebas: "correr todo para la derecha"); the
  *    players' boxes (the fixed layer) kept in the middle of the picture. The continue's countdown and GAME OVER over
  *    the play keep its sides. The other screens (the menus' TV, the portraits, the stage cards, the stories, the bonus
- *    stages, the name entry, the ending, and stage 3's climb, whose map is black past the cabinet's 288 columns) are
- *    pictures of the board's width: WIDE's sides there are their edges' colour (the TV's orange), or black where
- *    their edges are not of one colour; the presentation keeps the board's 320.
+ *    stages, the name entry, the ending, and stage 3's elevator from the platform's standing till the play goes on at
+ *    the shaft's top, its map blank past the cabinet's 288 columns, the platform's limits the cabinet's) are pictures
+ *    of the board's width, centred: WIDE's sides there are their edges' colour (the TV's orange), or black where their
+ *    edges are not of one colour; the presentation keeps the board's 320. (The elevator's sides of the shaft's own
+ *    cells, climb_fill, are off: CLIMB_SIDES.)
  *
  *    The objects (the console's versions of the game's functions, console/replaced.txt): a stage's spawns come in at
  *    their place past the wider screen's right side (spawn_stage_objects: due when the camera is that much closer;
@@ -49,7 +51,9 @@
  *    too) puts in where the board does what the cabinet shows (a scene's), and the goons that come in by themselves
  *    from where the cabinet did not show them (under its black edges or past them: stage 1's first goon, waiting for
  *    its opening scene to end, a player's report) as far past the wider screen's edges as they were past the
- *    cabinet's. An object's x is the screen's: 40 at the board's left edge, 17F at its right.
+ *    cabinet's; then, ahead of the list, those due in the wider screen's right side that stand in its sight (stage 2's
+ *    Otto at his stall through the opening, the players' issue 16), which the list skips as it comes to them. An
+ *    object's x is the screen's: 40 at the board's left edge, 17F at its right.
  *
  *    For development, SIMPSONS_WIDE_DEBUG in the environment writes each frame's sides, the game's step, the layers'
  *    scrolls and rings, the stage record's entry and the objects in use to the standard error; --wide-check (the
@@ -59,6 +63,7 @@
 #include "console_internal.h"
 
 #include "game.h"
+#include "game/data.h"    /* (game_tiles: climb_fill's, CLIMB_SIDES) */
 #include "simpsons/machine.h"
 #include "simpsons/video.h"
 
@@ -579,14 +584,25 @@ static bool in_play(void)
 		                                                                                             is scene 02) */
 }
 
+/* Stage 3's elevator: its step (7) till its scroll follows the camera (cemetery_scroll_update's step 5, the play at the
+   shaft's top), the platform standing and then going up the shaft */
+#define ELEVATOR_STEP       7u
+#define ELEVATOR_PLAY       5u
+
+static bool elevator(void)
+{
+	return game_step == ELEVATOR_STEP && stage_scroll_step < ELEVATOR_PLAY;
+}
+
 static int what_shows(void)
 {
 	if (wide_kind() == WIDE_OFF || console.page == PAGE_PRESENTATION || !console.booted)
 		return SHOW_BOARD;
-	if (in_play() && !(layer_rows_on && !layer_columns_on))
+	if (in_play() && !elevator() && !(layer_rows_on && !layer_columns_on))
 		return SHOW_PLAY;
-	return SHOW_PICTURE;    /* (and a stage's climb, which scrolls up and not across: stage 3's cemetery, its map black
-	                           past the cabinet's 288 columns; the game draws its rows there with offsets of their own) */
+	return SHOW_PICTURE;    /* (and a stage's climb, which scrolls up and not across: stage 3's elevator, its map blank
+	                           past the cabinet's 288 columns, the game's rows there with offsets of their own; a picture
+	                           for the objects from the platform's standing on, the platform's limits the cabinet's) */
 }
 
 /* The camera's room in its stage's record (stage_record_entry: its entries' checks, camera_check_x): at the right as far
@@ -663,6 +679,285 @@ static bool debug_on(void)
 	return on != 0;
 }
 
+/* ---- stage 3's elevator: its sides of the shaft's own cells (off) ----
+
+   Off (CLIMB_SIDES 0): the elevator shows WIDE's sides black, the picture centred (Sebas, 15-11-2026: "no me gusta",
+   "dejemos con esos bordes negros, pero bien centrado"); kept for when the sides have tiles of their own ("deja ese
+   arreglo comentado porque tendriamos que hacer unos sprites para eso"). On, it draws them of the shaft's cells:
+
+   The elevator's map has nothing past the cabinet's 288 columns: the game's rows hold the map's blank block there.
+   Its sides take the shaft's own cells, as segasonic-port's sides take its map's where the map has none (Sebas:
+   "hagamos como hicimos con el segasonic, que completamos con sprites del juego"): each side's blank cells outward,
+   row by row from the top, take the repeat of the row that holds where the row meets the side (the bricks every 2
+   cells, a beam's cells straight on, the stairs along their slope), so long as it holds for the cell beside it toward
+   the picture, for the one above it and for the one under the cell beside it; then, where none does, a blank beside a
+   blank, an even fill beside or above it, or the row's best repeat as it is (the K052109's tiles do not flip across
+   here: no mirror). What the map draws in the sides (the walkway at the climb's top) stays. Only the picture: the
+   elevator is a picture for the objects still, the platform's limits the cabinet's (Sebas: "no hay que extender los
+   limites del nivel para que los jugadores no se salgan"). The cells are layer A's in the board's tile RAM, as the
+   play's side columns are (the board's state, which every device of a LAN game draws alike); each frame the game's are
+   put back before they are drawn again from them, and when the elevator ends. Tried in 20:9 (stage3's script): the
+   bricks and the beams go on, the stairs as rows of blocks and a landing's floor as a slab down the side */
+#define CLIMB_SIDES         0
+
+static bool climb_now, climb_drawn;    /* (the next frame's picture is the elevator's, and the frame shown's) */
+static int held_left = -1;    /* (the play's left side the map has room for, the picture's kept after the elevator) */
+
+#define EARLY_MOST          8            /* the spawns put in ahead of the list in the play's first frame */
+
+static uint16_t early_spawns[EARLY_MOST];    /* (their records: the list skips them as it comes to them,
+                                                put_in_sighted_spawns) */
+static uint16_t early_objects[EARLY_MOST];    /* (and their objects) */
+static int early_count;
+
+#if CLIMB_SIDES
+#define CLIMB_ROWS          32           /* the ring's rows, from the one above the screen's first */
+#define CLIMB_COLUMNS       64           /* (a ring's: the widest picture's 62 at most) */
+#define CLIMB_REPEATS       20
+#define CLIMB_PERIOD        8            /* the cells toward the picture a row's repeat is scored on */
+#define CLIMB_EVIDENCE      2            /* the fewest of them a repeat holds for, to be taken */
+#define TILE_SCROLL_Y_A     0x180Cu      /* the K052109's scroll y of layer A, as one (k052109's update_scroll) */
+#define TILE_SCROLL_CONTROL 0x1C80u      /* its scroll by rows or columns (layer A's: bits 0-2) */
+#define TILE_ADDRESS_MAP    0x1C00u
+#define TILE_BANKS_01       0x1D80u      /* the tile ROM's banks */
+#define TILE_BANKS_23       0x1F00u
+#define SCREEN_TOP          16           /* the screen's first line in the K052109's (the video's CLIP_TOP) */
+
+enum { CELL_OUT, CELL_SHOWN, CELL_HIDDEN, CELL_DRAWN };
+
+/* A repeat: a cell takes the one 'across' cells toward the picture, and so many rows down (1) or up (-1): along the
+   rows, along the stairs' slope, along half of it */
+static const int8_t climb_repeats[CLIMB_REPEATS][2] = {
+	{ 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 },
+	{ 1, -1 }, { 1, 1 }, { 2, -2 }, { 2, 2 }, { 3, -3 }, { 3, 3 }, { 4, -4 }, { 4, 4 },
+	{ 2, -1 }, { 2, 1 }, { 4, -2 }, { 4, 2 }
+};
+
+static uint8_t climb_marks[32][CLIMB_COLUMNS];    /* the console's cells in layer A's ring */
+static uint8_t climb_cells[32][CLIMB_COLUMNS][4];    /* the game's colour and code there, and the console's */
+
+/* The picture's cells: layer A's ring from the row above the screen's first, from the picture's first column */
+typedef struct
+{
+	int columns;
+	uint16_t word[CLIMB_ROWS][CLIMB_COLUMNS];    /* colour << 8 | code */
+	uint8_t state[CLIMB_ROWS][CLIMB_COLUMNS];
+	bool blank[CLIMB_ROWS][CLIMB_COLUMNS];
+} climb_grid;
+
+/* A cell's tile has nothing to draw (all of it pen 0): read as the video reads it (simpsons.cpp's tile callback) */
+static bool tile_blank(uint16_t word)
+{
+	const uint8_t *ram = simpsons_board.tile_ram;
+	const unsigned which = (unsigned)(word >> 10) & 3u;
+	unsigned colour = word >> 8, bank = (ram[which < 2u ? TILE_BANKS_01 : TILE_BANKS_23] >> (4u * (which & 1u))) & 0x0Fu;
+	const uint8_t *data;
+
+	if (!(ram[TILE_ADDRESS_MAP] & 0x40u))
+		colour = (colour & 0xF3u) | ((bank & 3u) << 2);
+	bank >>= 2;
+	data = &game_tiles[(((word & 0xFFu) | ((colour & 0x3Fu) << 8) | (bank << 14)) % (GAME_TILES_SIZE / 32u)) * 32u];
+	for (int byte = 0; byte < 32; byte++)
+		if (data[byte])
+			return false;
+	return true;
+}
+
+static bool climb_known(const climb_grid *grid, int column, int row)
+{
+	return column >= 0 && column < grid->columns && row >= 0 && row < CLIMB_ROWS
+		&& (grid->state[row][column] == CELL_SHOWN || grid->state[row][column] == CELL_DRAWN);
+}
+
+/* Two cells look alike: the same, or both blank */
+static bool climb_alike(const climb_grid *grid, int column, int row, int other_column, int other_row)
+{
+	return grid->word[row][column] == grid->word[other_row][other_column]
+		|| (grid->blank[row][column] && grid->blank[other_row][other_column]);
+}
+
+/* The repeats of a row's side, best first, and their scores: how many cells each holds for where the row meets the
+   side (from the cell at 'from' toward the picture, with the rows above and under) */
+static void climb_rank(const climb_grid *grid, int row, int from, int step, int *ranked, int *scores)
+{
+	for (int repeat = 0; repeat < CLIMB_REPEATS; repeat++)
+	{
+		int index;
+
+		scores[repeat] = 0;
+		for (int line = row - 1; line <= row + 1; line++)
+			for (int cell = 0; cell < CLIMB_PERIOD; cell++)
+			{
+				const int here = from - step * cell, there = from - step * (cell + climb_repeats[repeat][0]);
+				const int there_line = line + climb_repeats[repeat][1];
+
+				if (climb_known(grid, here, line) && climb_known(grid, there, there_line) && !grid->blank[line][here])
+					scores[repeat] += grid->word[line][here] == grid->word[there_line][there];
+			}
+		for (index = repeat; index > 0 && scores[ranked[index - 1]] < scores[repeat]; index--)
+			ranked[index] = ranked[index - 1];
+		ranked[index] = repeat;
+	}
+}
+
+/* A side's cell by the row's repeats: the best one that holds for the cell beside it toward the picture, for the one
+   above it and for the one under the cell beside it (a structure's corner ends there); false when none does */
+static bool climb_repeat(const climb_grid *grid, int column, int row, int step, const int *ranked, const int *scores,
+	uint16_t *word)
+{
+	const int inner = column - step;
+	const bool above_known = climb_known(grid, column, row - 1);
+
+	if (!climb_known(grid, inner, row))
+		return false;
+	for (int index = 0; index < CLIMB_REPEATS && scores[ranked[index]] >= CLIMB_EVIDENCE; index++)
+	{
+		const int across = -step * climb_repeats[ranked[index]][0], down = climb_repeats[ranked[index]][1];
+
+		if (!climb_known(grid, column + across, row + down) || !climb_known(grid, inner + across, row + down)
+			|| !climb_alike(grid, inner, row, inner + across, row + down))
+			continue;
+		if (above_known && (!climb_known(grid, column + across, row - 1 + down)
+				|| !climb_alike(grid, column, row - 1, column + across, row - 1 + down)))
+			continue;
+		if (row + 1 < CLIMB_ROWS && grid->state[row + 1][inner] == CELL_SHOWN
+			&& (!climb_known(grid, inner + across, row + 1 + down)
+				|| !climb_alike(grid, inner, row + 1, inner + across, row + 1 + down)))
+			continue;
+		*word = grid->word[row + down][column + across];
+		return true;
+	}
+	return false;
+}
+
+/* A side's cell no repeat holds for: a blank beside a blank (a structure ends), an even fill beside it or above it,
+   else the row's best repeat as it is, else the cell beside it */
+static uint16_t climb_other(const climb_grid *grid, int column, int row, int step, const int *ranked)
+{
+	const int inner = column - step;
+
+	if (climb_known(grid, inner, row) && grid->blank[row][inner])
+		return grid->word[row][inner];
+	if (climb_known(grid, inner, row) && climb_known(grid, inner, row - 1)
+		&& grid->word[row - 1][inner] == grid->word[row][inner])
+		return grid->word[row][inner];
+	if (climb_known(grid, column, row - 1) && !grid->blank[row - 1][column]
+		&& (!climb_known(grid, column, row - 2) || grid->word[row - 2][column] == grid->word[row - 1][column]))
+		return grid->word[row - 1][column];
+	for (int index = 0; index < CLIMB_REPEATS; index++)
+	{
+		const int across = -step * climb_repeats[ranked[index]][0], down = climb_repeats[ranked[index]][1];
+
+		if (climb_known(grid, column + across, row + down))
+			return grid->word[row + down][column + across];
+	}
+	return climb_known(grid, inner, row) ? grid->word[row][inner] : grid->word[row][column];
+}
+
+/* The game's cells back where the console's are still (the game's rows drawn over them since are the game's) */
+static void climb_put_back(void)
+{
+	const uint16_t tiles = record_of(0).tiles;
+
+	for (int row = 0; row < 32; row++)
+		for (int column = 0; column < CLIMB_COLUMNS; column++)
+		{
+			const uint16_t place = (uint16_t)(tiles + 0x40u * (unsigned)row + (unsigned)column);
+			uint8_t *colour = &simpsons_board.tile_ram[place - 0x2000u], *code = &simpsons_board.tile_ram[place];
+
+			if (!climb_marks[row][column])
+				continue;
+			climb_marks[row][column] = 0;
+			if (*colour == climb_cells[row][column][2] && *code == climb_cells[row][column][3])
+			{
+				*colour = climb_cells[row][column][0];
+				*code = climb_cells[row][column][1];
+			}
+		}
+}
+
+/* The climb's sides, 'left' and 'right' of them, drawn of the shaft's own cells (its game's put back first) */
+static void climb_fill(int left, int right)
+{
+	static climb_grid grid;
+	const uint16_t tiles = record_of(0).tiles;
+	const int x = layer_scroll_x(0);
+	const int top = ((((SCREEN_TOP + simpsons_board.tile_ram[TILE_SCROLL_Y_A]) & 0xFF) >> 3) + 31) & 31;
+	const int first = (x - left) >> 3, last = (x + SIMPSONS_VIDEO_WIDTH - 1 + right) >> 3;
+	const int shown_first = (x + EDGE + TILE - 1) >> 3, shown_last = ((x + SIMPSONS_VIDEO_WIDTH - EDGE) >> 3) - 1;
+	const int drawn_first = (x & ~(BLOCK - 1)) >> 3, drawn_last = drawn_first + ROW_BLOCKS * (BLOCK / TILE) - 1;
+	int ranked[CLIMB_REPEATS], scores[CLIMB_REPEATS];
+
+	climb_put_back();
+	if (simpsons_board.tile_ram[TILE_SCROLL_CONTROL] & 7u)
+		return;    /* (layer A scrolled by rows or columns: not the climb's) */
+	grid.columns = LEAST(last - first + 1, CLIMB_COLUMNS);
+	for (int row = 0; row < CLIMB_ROWS; row++)
+		for (int column = 0; column < grid.columns; column++)
+		{
+			const int map_column = first + column;
+			const uint16_t place = (uint16_t)(tiles + 0x40u * (unsigned)((top + row) & 31)
+				+ (unsigned)(map_column & (CLIMB_COLUMNS - 1)));
+			const uint16_t word = (uint16_t)(simpsons_board.tile_ram[place - 0x2000u] << 8 | simpsons_board.tile_ram[place]);
+
+			grid.word[row][column] = word;
+			grid.blank[row][column] = tile_blank(word);
+			if (map_column >= shown_first && map_column <= shown_last)
+				grid.state[row][column] = CELL_SHOWN;    /* (the cabinet's 288 columns) */
+			else if (map_column >= drawn_first && map_column <= drawn_last && !grid.blank[row][column])
+				grid.state[row][column] = CELL_SHOWN;    /* (what the map draws in a side: it stays) */
+			else
+				grid.state[row][column] = CELL_HIDDEN;
+		}
+	/* (twice row by row from the top: the repeats alone, so a row can take from the rows under it; then the rest) */
+	for (int pass = 0; pass < 2; pass++)
+		for (int row = 0; row < CLIMB_ROWS; row++)
+			for (int side = 0; side < 2; side++)
+			{
+				const int step = side ? -1 : 1;
+				int column = (side ? shown_first : shown_last) - first + step;
+
+				while (column >= 0 && column < grid.columns && grid.state[row][column] != CELL_HIDDEN)
+					column += step;
+				if (column < 0 || column >= grid.columns)
+					continue;
+				climb_rank(&grid, row, column - step, step, ranked, scores);
+				for (; column >= 0 && column < grid.columns; column += step)
+				{
+					uint16_t word = grid.word[row][column];
+
+					if (grid.state[row][column] != CELL_HIDDEN)
+						continue;
+					if (pass == 0 && !climb_repeat(&grid, column, row, step, ranked, scores, &word))
+						continue;
+					if (pass == 1 && !climb_repeat(&grid, column, row, step, ranked, scores, &word))
+						word = climb_other(&grid, column, row, step, ranked);
+					grid.word[row][column] = word;
+					grid.blank[row][column] = tile_blank(word);
+					grid.state[row][column] = CELL_DRAWN;
+				}
+			}
+	for (int row = 0; row < CLIMB_ROWS; row++)
+		for (int column = 0; column < grid.columns; column++)
+		{
+			const int ring_row = (top + row) & 31, ring_column = (first + column) & (CLIMB_COLUMNS - 1);
+			const uint16_t place = (uint16_t)(tiles + 0x40u * (unsigned)ring_row + (unsigned)ring_column);
+			uint8_t *colour = &simpsons_board.tile_ram[place - 0x2000u], *code = &simpsons_board.tile_ram[place];
+			const uint16_t word = grid.word[row][column];
+
+			if (grid.state[row][column] != CELL_DRAWN || (*colour == (word >> 8) && *code == (word & 0xFFu)))
+				continue;
+			climb_cells[ring_row][ring_column][0] = *colour;
+			climb_cells[ring_row][ring_column][1] = *code;
+			climb_cells[ring_row][ring_column][2] = (uint8_t)(word >> 8);
+			climb_cells[ring_row][ring_column][3] = (uint8_t)word;
+			climb_marks[ring_row][ring_column] = 1;
+			*colour = (uint8_t)(word >> 8);
+			*code = (uint8_t)word;
+		}
+}
+#endif
+
 static void settle_moved_spawns(void);
 
 void console_wide_frame(void)
@@ -671,7 +966,10 @@ void console_wide_frame(void)
 	int left = 0, right = 0;
 
 	if (game_step != last_step || game_mode != last_mode)
-		forget_rings();    /* (another step: its maps to come) */
+	{
+		forget_rings();    /* (another step: its maps to come, */
+		early_count = 0;    /* its spawn list) */
+	}
 	settle_moved_spawns();    /* (the spawns moved out of sight that are not enemies: back at their places) */
 	if (floor_camera_seen >= 0 && (int)camera_main_layer != floor_camera_seen)
 		floor_layer = -1;    /* (the camera on another layer: the game's floor columns of it from now on) */
@@ -679,21 +977,32 @@ void console_wide_frame(void)
 	last_step = game_step;
 	last_mode = game_mode;
 	shown_drawn = shown_now;
+	climb_drawn = climb_now;
 	shown_now = what_shows();
 	fixed_first = edges_masked() ? EDGE : 0;
 	fixed_last = SIMPSONS_VIDEO_WIDTH - 1 - fixed_first;
 	if (shown_now == SHOW_PLAY)
 	{
+#if CLIMB_SIDES
+		climb_put_back();    /* (the elevator's sides gone: the game's cells, the map's) */
+#endif
+		climb_now = false;
 		play_sides(side, &left, &right);
-		if ((!wide_left_now && !wide_right_now) || shown_drawn != SHOW_PLAY)
+		if ((!wide_left_now && !wide_right_now) || (shown_drawn != SHOW_PLAY && !climb_drawn))
 		{
 			wide_left_now = left;    /* (the sides come, or the play does: at once) */
 			wide_right_now = right;
+			held_left = -1;
 		}
+		else if ((climb_drawn || held_left >= 0) && left < wide_left_now)
+			held_left = left;    /* (after the elevator's picture, the play at the shaft's top: the picture kept centred,
+			                        black past the map's left end as the elevator's sides were, till the camera brings the
+			                        map that far; the objects' left side the map's, play_sides_now) */
 		else
 		{
 			wide_left_now = pan_to(wide_left_now, left);
 			wide_right_now = pan_to(wide_right_now, right);
+			held_left = -1;
 		}
 		for (int layer = 0; layer < 2; layer++)
 		{
@@ -715,23 +1024,41 @@ void console_wide_frame(void)
 	}
 	else
 	{
-		/* (a stage's play drawn as a picture, stage 3's climb, keeps the picture where the play had it: the board's part
-		   in the same place and the players' boxes too, no jump as the climb begins and ends; Sebas: "El nivel del
-		   ascensor empieza mal alineado") */
-		const bool climb = shown_now == SHOW_PICTURE && in_play();
+		/* (stage 3's elevator, a stage's play drawn as a picture, centred as the other pictures, its sides black, from
+		   the platform's standing on: no jump as it begins, the step's change before it a picture too, and the play
+		   after it held there, climb_drawn; Sebas: "dejemos con esos bordes negros, pero bien centrado". Another play
+		   drawn as a picture, stage 8's start, keeps the picture where the play had it: the board's part in the same
+		   place and the players' boxes too) */
+		const bool climb = shown_now == SHOW_PICTURE && in_play()
+			&& (elevator() || (climb_drawn && game_step == ELEVATOR_STEP));    /* (till its play comes: its scroll's step
+			                                                                     5 may begin with a frame of its picture) */
+		const bool kept = shown_now == SHOW_PICTURE && in_play() && !climb;
 
-		if (!climb || shown_drawn == SHOW_BOARD)
+		if (!kept || shown_drawn == SHOW_BOARD)
 			wide_left_now = wide_right_now = shown_now == SHOW_PICTURE ? side : 0;
 		for (int layer = 0; layer < 2; layer++)
 		{
 			const layer_map_area map = rings[layer].known && in_play() ? map_of(layer) : (layer_map_area){ 0 };
 
 			if (map.known && map.width > RING)
-				follow_ring(layer);    /* (stage 3's climb, a picture: its rings kept as its scroll goes, for the play
+			{
+				follow_ring(layer);    /* (a play drawn as a picture: its rings kept as its scroll goes, for the play
 				                          after it) */
+				if (climb && !(edges_on(layer) && layer_rows_on))
+					draw_side_columns(layer, &map, wide_left_now, wide_right_now);    /* (and the sides of its layers that
+						do not scroll up, under the black, as a play draws them: the columns under the cabinet's black edges,
+						which the game leaves as they were, its map's for the play after it) */
+			}
 			simpsons_video_set_layer_window(1 + layer, -0x10000, 0x10000);
 		}
-		simpsons_video_set_fixed(climb ? (wide_right_now - wide_left_now) / 2 : 0, fixed_first, fixed_last);
+		climb_now = climb && (wide_left_now || wide_right_now);
+#if CLIMB_SIDES
+		if (climb_now)
+			climb_fill(wide_left_now, wide_right_now);    /* (its sides of the shaft's own cells) */
+		else
+			climb_put_back();
+#endif
+		simpsons_video_set_fixed(kept ? (wide_right_now - wide_left_now) / 2 : 0, fixed_first, fixed_last);
 	}
 	simpsons_video_set_wide(wide_left_now, wide_right_now);
 	if (debug_on())
@@ -739,11 +1066,13 @@ void console_wide_frame(void)
 		const int data = rom16(STAGE_RECORDS_BANK, (uint16_t)(stage_record_entry + 2u));
 		const layer_map_area map_a = map_of(0), map_b = map_of(1);
 
-		fprintf(stderr, "frame %llu: show %d sides %d %d step %u phase %u/%u scene %02X/%u main %u camera %04X,%04X "
+		fprintf(stderr, "frame %llu: show %d sides %d %d step %u phase %u/%u scroll %u held %d scene %02X/%u main %u "
+			"camera %04X,%04X "
 			"A %04X,%04X ring %d %d..%d w %d  B %04X,%04X ring %d %d..%d w %d edges %u%u%u%u entry %04X x %04X right %d %04X "
 			"left %d %04X\n",
 			(unsigned long long)simpsons_board.frame, shown_now, wide_left_now, wide_right_now, (unsigned)game_step,
-			(unsigned)step_phase, (unsigned)mode_phase, (unsigned)map_scene, (unsigned)map_area,
+			(unsigned)step_phase, (unsigned)mode_phase, (unsigned)stage_scroll_step, held_left, (unsigned)map_scene,
+			(unsigned)map_area,
 			(unsigned)camera_main_layer, (unsigned)camera_x, (unsigned)camera_y, (unsigned)layer_a_scroll_x,
 			(unsigned)layer_a_scroll_y, rings[0].known, rings[0].first, rings[0].last, map_a.width,
 			(unsigned)layer_b_scroll_x, (unsigned)layer_b_scroll_y, rings[1].known, rings[1].first, rings[1].last,
@@ -804,8 +1133,8 @@ void wide_picture_sides(console_picture *frame)
 {
 	const int first = fixed_first ? fixed_first : 0, last = SIMPSONS_VIDEO_WIDTH - 1 - first;
 
-	if (shown_drawn != SHOW_PICTURE || (!frame->left && !frame->right))
-		return;
+	if (shown_drawn != SHOW_PICTURE || (CLIMB_SIDES && climb_drawn) || (!frame->left && !frame->right))
+		return;    /* (stage 3's elevator, CLIMB_SIDES: its sides of the shaft's own cells, climb_fill) */
 	{
 		const uint32_t left = edge_colour(frame, first), right = edge_colour(frame, last);
 
@@ -843,7 +1172,8 @@ static void play_sides_now(int *left, int *right)
 {
 	if (shown_now == SHOW_PLAY)
 	{
-		*left = wide_left_now;
+		*left = held_left >= 0 ? LEAST(wide_left_now, held_left) : wide_left_now;    /* (the picture held centred after
+		                                                                                 the elevator: the map's room) */
 		*right = wide_right_now;
 	}
 	else if (!play_begins(left, right))
@@ -1093,30 +1423,143 @@ int console_wide_spawn_check(char *text, size_t size)
 	return shown;
 }
 
+/* A spawn put in as the game's spawn_stage_objects puts it in (an object of its list free for it, or none), at its
+   place moved by WIDE's sides ('wide'), else at the board's: the object, 0 if none was free */
+static uint16_t put_in_spawn(uint16_t spawn, bool wide, int side_left, int side_right, int picture_left,
+	int picture_right)
+{
+	uint32_t carry = 0;
+	uint8_t spawn_flags = 0, spawn_height = 0, flags_2 = 0, kind = 0, state = 0, flags_3 = 0, height_steps = 0, depth = 0;
+	uint16_t spawned = 0, spawn_stage_x = 0, camera_offset = 0, spawn_screen_x = 0, placed_x = 0, left_side_x = 0,
+		signed_steps = 0, height_pixels = 0, negated_height = 0, height_on_screen = 0, spawn_y = 0;
+
+	flags_2 = SPAWN(spawn)->flags;
+	spawn_flags = flags_2;
+	take_free_object_for_spawn(spawn_flags, &spawned, &carry);
+	if (carry == 0u)
+		return 0u;
+	kind = SPAWN(spawn)->kind;
+	OBJECT(spawned)->type = kind;
+	AT16(OBJECT(spawned)->state, -1) = 0u;
+	state = SPAWN(spawn)->state;
+	OBJECT(spawned)->parameter = state;
+	spawn_stage_x = SPAWN(spawn)->x;
+	camera_offset = spawn_stage_x - camera_x;
+	spawn_screen_x = camera_offset + 0x40u;
+	OBJECT(spawned)->x = spawn_screen_x;
+	flags_3 = SPAWN(spawn)->flags;
+	if ((int8_t)flags_3 < 0)
+	{
+		placed_x = OBJECT(spawned)->x;
+		left_side_x = wide ? past_left_side(placed_x, side_left, side_right, picture_left)    /* (WIDE: past its
+			left side, from the right side's distance; where the board has it if the cabinet shows it there) */
+			: (uint16_t)(placed_x - 0x160u);
+		OBJECT(spawned)->x = left_side_x;
+	}
+	else if (wide && in_cemetery == 0u && comes_in_type(kind))
+	{
+		OBJECT(spawned)->x = past_right_side(spawn_screen_x, side_right, picture_left, picture_right);    /* (WIDE: out of its sight) */
+		note_moved(spawned, (int16_t)OBJECT(spawned)->x - (int16_t)spawn_screen_x);
+	}
+	OBJECT(spawned)->x_fraction = 0u;
+	height_steps = SPAWN(spawn)->y;
+	signed_steps = (int8_t)height_steps;
+	height_pixels = (uint32_t)signed_steps << 3;
+	negated_height = 0u - height_pixels;
+	height_on_screen = negated_height + camera_y;
+	spawn_y = height_on_screen + 0x190u;
+	OBJECT(spawned)->y = spawn_y;
+	OBJECT(spawned)->y_fraction = 0u;
+	depth = SPAWN(spawn)->depth;
+	spawn_height = depth;
+	OBJECT(spawned)->z = spawn_height;
+	OBJECT(spawned)->z_fraction = 0u;
+	OBJECT(spawned)->floor_z = spawn_height;
+	OBJECT(spawned)->carried = 0u;
+	OBJECT(spawned)->blocked = 0u;
+	return spawned;
+}
+
+/* The play's first frame, after the board's spawns: the spawns due in the wider screen's right side that stand in its
+   sight, put in ahead of the list (a stage's start: start_stage_objects reads the list once, the game's play frames
+   come only after its opening; stage 2's Otto at his stall in 20:9 came as the players dropped from their balloon,
+   the players' issue 16). Not those that come in by themselves or from the left: the list puts them in as it comes to
+   them, after the opening, whose own objects take their slots meanwhile (stage 2's balloon lost two of its own when the
+   goons came in with Otto) */
+static void put_in_sighted_spawns(int side_left, int side_right, int picture_left, int picture_right)
+{
+	uint16_t spawned;
+
+	early_count = 0;
+	window_bank = 0x1Bu;    /* (the spawn lists' bank, as the game's spawn_stage_objects reads them) */
+	set_lines(window_bank);
+	for (uint16_t spawn = spawn_next; early_count < EARLY_MOST; spawn = (uint16_t)(spawn + 8u))
+	{
+		const int screen_x = (int16_t)(uint16_t)(SPAWN(spawn)->x - camera_x + 0x40u);
+
+		if ((uint8_t)(SPAWN(spawn)->x >> 8u) == 0xFFu
+			|| (uint16_t)(camera_x + 0x150u + (unsigned)side_right) < SPAWN(spawn)->x)
+			break;
+		if (difficulty < SPAWN(spawn)->level || (int8_t)SPAWN(spawn)->flags < 0 || comes_in_type(SPAWN(spawn)->kind)
+			|| screen_x - SIGHT_HALF >= OBJECT_RIGHT + side_right)
+			continue;    /* (not one that stands in the wider screen's sight) */
+		if ((spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right)) != 0u)
+		{
+			early_spawns[early_count] = spawn;
+			early_objects[early_count++] = spawned;
+			if (debug_on())
+				fprintf(stderr, "frame %llu: put in ahead: object %04X type %02X x %04X\n",
+					(unsigned long long)simpsons_board.frame, (unsigned)spawned, (unsigned)OBJECT(spawned)->type,
+					(unsigned)OBJECT(spawned)->x);
+		}
+	}
+}
+
+/* A spawn put in ahead of the list (put_in_sighted_spawns), as the list comes to it (no longer ahead): the list skips
+   it ('wide'), and with WIDE turned off meanwhile, while it is there: one the game has taken off past the board's
+   screen the list puts in again (stage 2's Otto, taken off as the play began, at his stall as the cabinet's camera
+   comes). In WIDE one that took itself off is not put in again (stage 2's E9, gone in its first frame) */
+static bool put_in_early(uint16_t spawn, bool wide)
+{
+	for (int index = 0; index < early_count; index++)
+		if (early_spawns[index] == spawn)
+		{
+			const uint16_t object = early_objects[index];
+			const bool there = OBJECT(object)->flags != 0u && OBJECT(object)->type == SPAWN(spawn)->kind;
+
+			early_spawns[index] = early_spawns[--early_count];
+			early_objects[index] = early_objects[early_count];
+			return wide || there;
+		}
+	return false;
+}
+
 /* The game's spawn_stage_objects (objects/spawning.c), the spawns due as far past the wider screen's right side as
-   past the board's, put in at their place; those that come in from the left as far past its left side */
+   past the board's, put in at their place; those that come in from the left as far past its left side; in the play's
+   first frame, the board's spawns and those that stand in the wider screen's sight (put_in_sighted_spawns) */
 void spawn_stage_objects(void)
 {
 	uint32_t carry = 0;
-	uint8_t enemy_speed = 0, spawn_flags = 0, spawn_height = 0;
+	uint8_t enemy_speed = 0, flags = 0, level = 0;
 	uint16_t spawn = 0, spawned = 0;
-	uint8_t flags = 0, level = 0, flags_2 = 0, kind = 0, state = 0, flags_3 = 0, height_steps = 0, depth = 0;
-	uint16_t enemies_speed = 0, camera_position = 0, spawn_edge = 0, scroll_position = 0, spawn_place = 0, compared_scroll = 0, spawn_stage_x = 0, camera_offset = 0, spawn_screen_x = 0, placed_x = 0, left_side_x = 0, signed_steps = 0, height_pixels = 0, negated_height = 0, height_on_screen = 0, spawn_y = 0;
+	uint16_t enemies_speed = 0, camera_position = 0, spawn_edge = 0, scroll_position = 0, spawn_place = 0, compared_scroll = 0;
 	int side_left, side_right, picture_left, picture_right;
 
 	if (in_cemetery == 0u && play_begins(&picture_left, &picture_right))
 	{
-		spawn_as_play_begins(picture_left, picture_right);    /* (the play's first frame: the board's spawns) */
+		spawn_as_play_begins(picture_left, picture_right);    /* (the play's first frame: the board's spawns, */
+		put_in_sighted_spawns(MOST(picture_left, 0), MOST(picture_right, 0), picture_left, picture_right);    /* then
+			those that stand in the wider screen's sight) */
 		return;
 	}
 	play_sides_now(&picture_left, &picture_right);
 	side_left = MOST(picture_left, 0);
 	side_right = MOST(picture_right, 0);
-	if (!side_left && !side_right)
+	if (!side_left && !side_right && !early_count)
 	{
 		original_spawn_stage_objects();
 		return;
-	}
+	}    /* (and with some put in ahead of the list, WIDE turned off meanwhile: the board's, skipping them) */
 	enemy_speed = enemy_speeds_by_rank[(int8_t)rank];
 	enemies_speed = (uint32_t)enemy_speed << 1;
 	carry = 0u;
@@ -1172,53 +1615,14 @@ void spawn_stage_objects(void)
 			spawn_next = spawn + 8u;
 			continue;
 		}
-		flags_2 = SPAWN(spawn)->flags;
-		spawn_flags = flags_2;
-		take_free_object_for_spawn(spawn_flags, &spawned, &carry);
-		if (carry == 0u)
+		if (put_in_early(spawn, side_left || side_right))
 		{
-			spawn_next = spawn + 8u;
+			spawn_next = spawn + 8u;    /* (put in ahead of the list already: the play's first frame) */
 			continue;
 		}
-		kind = SPAWN(spawn)->kind;
-		OBJECT(spawned)->type = kind;
-		AT16(OBJECT(spawned)->state, -1) = 0u;
-		state = SPAWN(spawn)->state;
-		OBJECT(spawned)->parameter = state;
-		spawn_stage_x = SPAWN(spawn)->x;
-		camera_offset = spawn_stage_x - camera_x;
-		spawn_screen_x = camera_offset + 0x40u;
-		OBJECT(spawned)->x = spawn_screen_x;
-		flags_3 = SPAWN(spawn)->flags;
-		if ((int8_t)flags_3 < 0)
-		{
-			placed_x = OBJECT(spawned)->x;
-			left_side_x = past_left_side(placed_x, side_left, side_right, picture_left);    /* (WIDE: past its left
-				side, from the right side's distance; where the board has it if the cabinet shows it there) */
-			OBJECT(spawned)->x = left_side_x;
-		}
-		else if (in_cemetery == 0u && comes_in_type(kind))
-		{
-			OBJECT(spawned)->x = past_right_side(spawn_screen_x, side_right, picture_left, picture_right);    /* (WIDE: out of its sight) */
-			note_moved(spawned, (int16_t)OBJECT(spawned)->x - (int16_t)spawn_screen_x);
-		}
-		OBJECT(spawned)->x_fraction = 0u;
-		height_steps = SPAWN(spawn)->y;
-		signed_steps = (int8_t)height_steps;
-		height_pixels = (uint32_t)signed_steps << 3;
-		negated_height = 0u - height_pixels;
-		height_on_screen = negated_height + camera_y;
-		spawn_y = height_on_screen + 0x190u;
-		OBJECT(spawned)->y = spawn_y;
-		OBJECT(spawned)->y_fraction = 0u;
-		depth = SPAWN(spawn)->depth;
-		spawn_height = depth;
-		OBJECT(spawned)->z = spawn_height;
-		OBJECT(spawned)->z_fraction = 0u;
-		OBJECT(spawned)->floor_z = spawn_height;
-		OBJECT(spawned)->carried = 0u;
-		OBJECT(spawned)->blocked = 0u;
-		note_spawn(spawned, picture_left, picture_right);
+		spawned = put_in_spawn(spawn, side_left || side_right, side_left, side_right, picture_left, picture_right);
+		if (spawned && (side_left || side_right))
+			note_spawn(spawned, picture_left, picture_right);
 		spawn_next = spawn + 8u;
 	}
 }
@@ -2467,6 +2871,12 @@ void wide_power_on(void)
 	story_end_waits = 0;
 	moved_count = 0;
 	objects_in_use = 0;
+	early_count = 0;
+	climb_now = climb_drawn = false;
+	held_left = -1;
+#if CLIMB_SIDES
+	memset(climb_marks, 0, sizeof(climb_marks));
+#endif
 }
 
 /* ---- a save state's part (states.c) ---- */
@@ -2487,6 +2897,9 @@ void wide_state(simpsons_state *state)
 	simpsons_state_bytes(state, moved_spawns, sizeof(moved_spawns));
 	simpsons_state_bytes(state, &moved_count, sizeof(moved_count));
 	simpsons_state_bytes(state, &objects_in_use, sizeof(objects_in_use));
+	simpsons_state_bytes(state, early_spawns, sizeof(early_spawns));
+	simpsons_state_bytes(state, early_objects, sizeof(early_objects));
+	simpsons_state_bytes(state, &early_count, sizeof(early_count));
 	simpsons_state_bytes(state, &fixed_first, sizeof(fixed_first));
 	simpsons_state_bytes(state, &fixed_last, sizeof(fixed_last));
 	simpsons_state_bytes(state, &last_step, sizeof(last_step));
@@ -2495,10 +2908,18 @@ void wide_state(simpsons_state *state)
 	simpsons_state_bytes(state, &shown_drawn, sizeof(shown_drawn));
 	simpsons_state_bytes(state, &wide_left_now, sizeof(wide_left_now));
 	simpsons_state_bytes(state, &wide_right_now, sizeof(wide_right_now));
+	simpsons_state_bytes(state, &climb_now, sizeof(climb_now));
+	simpsons_state_bytes(state, &climb_drawn, sizeof(climb_drawn));
+	simpsons_state_bytes(state, &held_left, sizeof(held_left));
+#if CLIMB_SIDES
+	simpsons_state_bytes(state, climb_marks, sizeof(climb_marks));
+	simpsons_state_bytes(state, climb_cells, sizeof(climb_cells));
+#endif
 	simpsons_state_bytes(state, &kind, sizeof(kind));
 	if (simpsons_state_loading(state) && kind != wide_kind())
 	{
 		wide_left_now = wide_right_now = 0;
+		held_left = -1;
 		shown_now = SHOW_BOARD;
 		simpsons_video_set_wide(0, 0);
 		simpsons_video_set_fixed(0, fixed_first, fixed_last);

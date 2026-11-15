@@ -4,14 +4,15 @@
  *                 pace, around the same game and board the headless runs check
  *    Version:     0.2.0
  *    Created:     06-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    15-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
- *    Usage: "The Simpsons Arcade Game" [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE] [--sound-hashes FILE]
- *                                 [--service] [--assets FOLDER|PACK] [--video-dump FRAME ... --video-dir DIR]
- *                                 [--eeprom FILE]
- *           "The Simpsons Mr. Plow Edition" [--assets FOLDER|PACK] [--script FILE] [--fast] [--actions FILE]
+ *    Usage: "The Simpsons Arcade Game" [--game ROMSET] [--prepare] [--script FILE [--fast]] [--hashes FILE]
+ *                                 [--video-hashes FILE] [--sound-hashes FILE] [--service] [--assets FOLDER|PACK]
+ *                                 [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]
+ *           "The Simpsons Mr. Plow Edition" [--game ROMSET] [--prepare] [--assets FOLDER|PACK] [--script FILE] [--fast]
+ *                          [--actions FILE]
  *                          [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start]
  *                          [--stereo] [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]]
  *
@@ -31,11 +32,11 @@
  *    sound board and the console's, refused if of another version), both in the folder of what the game keeps.
  *
  *    The folder of what the game keeps (saves_folder): beside the executable on Windows, the user's own folder for
- *    the game elsewhere (SDL_GetPrefPath). There: simpsons.ini, simpsons.scores, simpsons.state, controls.ini (each
- *    player's keys and buttons, both games), simpsons.nv, gamecontrollerdb.txt (the player's own mappings, or beside
- *    the executable), and on Windows
- *    the log (simpsons.log, simpsons-arcade.log) when the game was started with nowhere for it to go (not from a
- *    terminal).
+ *    the game elsewhere (SDL_GetPrefPath), or beside the game with a portable.txt there. There: simpsons.ini,
+ *    simpsons.scores, simpsons.state, controls.ini (each player's keys and buttons, both games), simpsons.nv,
+ *    gamecontrollerdb.txt (the player's own mappings, or beside the executable), and the log (simpsons.log,
+ *    simpsons-arcade.log, the two runs before as .1.log and .2.log) when the game was started with nowhere for it to go
+ *    (not from a terminal).
  *
  *    The game's data is its assets (game/assets.h), out of the player's ROM set: --assets (a folder or a pack); else
  *    the pack simpsons.assets beside the executable (beside the .app on macOS) or in the folder of what the game keeps;
@@ -44,7 +45,12 @@
  *    simpsons.zip or the folder rom beside the game or in the folder of what the game keeps, or one dropped on its
  *    window, written in the folder of what the game keeps. A pack the game cannot load (another version's: the
  *    version is in its header) is made again from the ROM set; with none there, the window says so and asks for it.
- *    Both games read the same pack (the same layout and the same program's tables: the same version).
+ *    Both games read the same pack (the same layout and the same program's tables: the same version). On the
+ *    computers --game ROMSET (or --game=ROMSET, one argument) names the player's ROM set, its .zip or its folder, taken
+ *    before the others when the pack has to be made, as one dropped on the first run's window (a shortcut's, a
+ *    launcher's); and --prepare makes the pack so with no window and ends: a launcher's setup step (RecompLauncher's,
+ *    docs/package/recomplauncher.json), its progress on the standard output as lines "progress FRACTION TEXT", 0 when
+ *    the pack is ready and 2 when it cannot be made. Without them the game starts as it always has.
  *
  *    On a device (SIMPSONS_HANDHELD, as tmnt-port's: the Nintendo Switch, ports/switch; Anbernic's H700 handhelds,
  *    ports/anbernic) the screen is the window, whole (the Switch's 1280 x 720, The Simpsons' WIDE 16:9 there,
@@ -138,6 +144,9 @@
 #ifdef __ANDROID__
 #include <sys/stat.h>      /* (mkdir: the console's letters out of the APK, android_letters) */
 #endif
+#if !defined(_WIN32) && !defined(SIMPSONS_HANDHELD)
+#include <unistd.h>        /* (isatty: a computer's log, open_log) */
+#endif
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
@@ -174,6 +183,9 @@
                                                           players' issue 2): switch_take_old_folder */
 #endif
 #define CONTROLS_FILE       "controls.ini"    /* (each player's keys and buttons: controls.c) */
+#define PORTABLE_FILE       "portable.txt"    /* beside the game on Linux, macOS: what it keeps there (saves_folder) */
+#define LOG_RUNS            3                 /* the runs whose logs are kept: .log, .1.log, .2.log (log_into) */
+#define QUIT_HOLD_FRAMES    118               /* Back and Start held two seconds: The Simpsons Arcade Game ends */
 #define MAPPINGS_FILE       "gamecontrollerdb.txt"    /* more game controllers for SDL (SDL_GameControllerDB's) */
 #define PLAYERS             4
 #define WINDOW_SCALE        3
@@ -184,12 +196,17 @@
 #define FRAME_RATE_NUMERATOR    6000000u
 #define FRAME_RATE_DENOMINATOR  (384u * 264u)
 
+#ifdef SIMPSONS_HANDHELD
+#define ROM_SET_USAGE       ""
+#else
+#define ROM_SET_USAGE       " [--game ROMSET] [--prepare]"    /* (the computers': find_assets, prepare) */
+#endif
 #ifdef SIMPSONS_CONSOLE
-#define USAGE "Usage: \"" TITLE "\" [--assets FOLDER|PACK] [--script FILE] [--fast] [--actions FILE]" \
+#define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--assets FOLDER|PACK] [--script FILE] [--fast] [--actions FILE]" \
 	" [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start] [--stereo]" \
 	" [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]] [--lan-name NAME] [--lan-hashes FILE]"
 #else
-#define USAGE "Usage: \"" TITLE "\" [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE]" \
+#define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE]" \
 	" [--sound-hashes FILE] [--service] [--assets FOLDER|PACK] [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]"
 #endif
 
@@ -206,6 +223,13 @@ static bool vsync_on;                 /* the renderer shows each frame at the sc
 static simpsons_script *script;
 static uint64_t script_frames;
 static bool fast;
+#ifndef SIMPSONS_HANDHELD
+static const char *rom_set_option;    /* --game: the player's ROM set, for the pack (find_assets, prepare) */
+#endif
+#ifdef SIMPSONS_CONSOLE
+static bool launcher_full_screen;     /* full screen for RecompLauncher's Big Picture alone: simpsons.ini keeps its
+                                         window (launcher_big_picture, save_settings) */
+#endif
 static bool unseen;                   /* --fast with SDL's dummy video: no picture shown (a check's run: its pictures
                                          are written, --video-dump) */
 static bool service_held;             /* --service: the test switch on all along */
@@ -891,6 +915,7 @@ static void toggle_full_screen(void)
 #ifdef SIMPSONS_CONSOLE
 	console_settings.full_screen = full;
 	console_settings.changed = true;
+	launcher_full_screen = false;    /* (the player's own choice from here: kept) */
 #endif
 }
 
@@ -1831,12 +1856,19 @@ static void read_controls(void)
 {
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
 	uint8_t coins = 0xFF;
+#ifndef SIMPSONS_HANDHELD
+	static int quit_held;    /* the frames a game controller has held Back and Start together */
+	bool quitting = false;
+#endif
 
 	for (int player = 0; player < PLAYERS; player++)
 	{
 		SDL_GameController *pad = controllers[player];
 		uint8_t pressed = player_pressed(player);
 
+#ifndef SIMPSONS_HANDHELD
+		quitting = quitting || (button(pad, SDL_CONTROLLER_BUTTON_BACK) && button(pad, SDL_CONTROLLER_BUTTON_START));
+#endif
 #ifdef SIMPSONS_TOUCH
 		if (player == 0)
 			pressed |= touch_controls();    /* (the touch screen's: player 1's) */
@@ -1855,6 +1887,13 @@ static void read_controls(void)
 		simpsons_board.test &= (uint8_t)~SIMPSONS_TEST_SERVICE;
 	else
 		simpsons_board.test |= SIMPSONS_TEST_SERVICE;
+#ifndef SIMPSONS_HANDHELD
+	/* (Escape's quit for a game controller, which has no key for it: its Back and Start held together two seconds; a
+	   controller in Big Picture has no keyboard in reach. A device leaves the game its own way: HOME, MENU) */
+	quit_held = quitting ? quit_held + 1 : 0;
+	if (quit_held >= QUIT_HOLD_FRAMES)
+		quit();
+#endif
 }
 
 /* ---- The Simpsons Arcade Game's EEPROM, kept: simpsons.nv in the folder of what the game keeps, read as the game starts,
@@ -1923,15 +1962,36 @@ static void save_settings(void)
 		return;    /* (a LAN game's: the host's settings, not this device's) */
 	if (settings->game_continues != CONSOLE_CONTINUES_UNLIMITED)
 		snprintf(continues, sizeof(continues), "%d", settings->game_continues);
-	fprintf(output, "window_scale=%d\nfull_screen=%d\npixels=%s\ninteger_scale=%d\nwide=%s\nvsync=%d\nvolume=%d\n"
-		"fps=%d\ndifficulty=%s\nlives=%d\ncontinues=%s\ndemo_sound=%d\nscreen=%s\nsound=%s\nbart_shirt=%s\n",
-		settings->window_scale, settings->full_screen, console_pixel_names[settings->pixels], settings->integer_scale,
+	if (!settings->full_screen)
+		launcher_full_screen = false;    /* (a window chosen in OPTIONS over Big Picture's full screen: the player's) */
+	/* (each key with what it takes, in a comment before it: the Recomp Standards' readable settings; the game reads the
+	   keys alone, load_settings) */
+	fprintf(output, "; " TITLE "'s settings, OPTIONS' (the game writes this file again when they change)\n"
+		"; window_scale: the window, in times the game's picture, 1 to 6\nwindow_scale=%d\n"
+		"; full_screen: 1 the whole screen, 0 a window (F11 or Alt+Enter in the game)\nfull_screen=%d\n"
+		"; pixels: sharp, smooth, bilinear or crt (F3 in the game)\npixels=%s\n"
+		"; integer_scale: 1 the picture a whole number of times its pixels, 0 as large as it fits\n"
+		"integer_scale=%d\n"
+		"; wide: off (the cabinet's picture), 16:10, 16:9, 20:9, or auto (the screen's shape)\nwide=%s\n"
+		"; vsync: 1 each frame shown at the screen's refresh, 0 not\nvsync=%d\n"
+		"; volume: 0 to 10, 5 the game's own\nvolume=%d\n"
+		"; fps: 1 the frames a second at the picture's top right, 0 not\nfps=%d\n"
+		"; difficulty: easy, normal, difficult or very difficult (the cabinet's)\ndifficulty=%s\n"
+		"; lives: the lives a player starts ARCADE with, 1 to 7\nlives=%d\n"
+		"; continues: ARCADE's continues, 0 to 9 or unlimited\ncontinues=%s\n"
+		"; demo_sound: 1 the sound while the game shows itself, 0 none (the cabinet's)\ndemo_sound=%d\n"
+		"; screen: normal or upside down (the cabinet's)\nscreen=%s\n"
+		"; sound: mono (as the cabinet is wired) or stereo\nsound=%s\n"
+		"; bart_shirt: orange (Bart's shirt orange, as on the show, Barney's salmon) or arcade (the cabinet's)\n"
+		"bart_shirt=%s\n",
+		settings->window_scale, settings->full_screen && !launcher_full_screen, console_pixel_names[settings->pixels],
+		settings->integer_scale,
 		console_wide_names[settings->wide], settings->vsync, settings->volume, settings->fps,
 		console_difficulty_names[settings->game_difficulty], settings->game_lives, continues, settings->demo_sound,
 		settings->upside_down ? "upside down" : "normal", settings->stereo ? "stereo" : "mono",
 		settings->bart_shirt ? "orange" : "arcade");
 	if (settings->name[0])
-		fprintf(output, "name=%s\n", settings->name);    /* (MULTIPLAYER > NAME) */
+		fprintf(output, "; name: this device's in MULTIPLAYER's rooms\nname=%s\n", settings->name);
 	fclose(output);
 }
 
@@ -1950,6 +2010,21 @@ static void load_settings(void)
 
 		while (end > line && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' '))
 			*--end = '\0';
+		{
+			/* (a key and its value as "key = value" too, as an editor of INI files may write a key the file did not
+			   have: RecompLauncher's, docs/package/recomplauncher.json) */
+			char *equals = strchr(line, '='), *key_end = equals, *value = equals ? equals + 1 : NULL;
+
+			while (key_end && key_end > line && (key_end[-1] == ' ' || key_end[-1] == '\t'))
+				key_end--;
+			while (value && (*value == ' ' || *value == '\t'))
+				value++;
+			if (equals && (key_end != equals || value != equals + 1))
+			{
+				*key_end = '=';
+				memmove(key_end + 1, value, strlen(value) + 1);
+			}
+		}
 		if (sscanf(line, "window_scale=%d", &number) == 1 && number >= 1 && number <= 6)
 			settings->window_scale = number;
 		else if (sscanf(line, "full_screen=%d", &number) == 1)
@@ -2048,6 +2123,15 @@ static void apply_settings(void)
 	if (!console_settings.full_screen)
 		SDL_SetWindowSize(window, view_width() * console_settings.window_scale,
 			SIMPSONS_VIDEO_HEIGHT * console_settings.window_scale);
+#ifndef SIMPSONS_HANDHELD
+	{
+		int width = 0, height = 0;    /* (the log: what the settings made of the window, full screen or its size) */
+
+		SDL_GetWindowSize(window, &width, &height);
+		fprintf(stderr, "%s %dx%d%s\n", console_settings.full_screen ? "Full screen" : "Window", width, height,
+			launcher_full_screen ? " (RecompLauncher's Big Picture)" : "");
+	}
+#endif
 }
 #endif
 
@@ -2259,9 +2343,9 @@ static void on_frame_done(void)
 
 /* Where the game keeps what it writes (its settings, its controls, its EEPROM, its log): beside the executable on
    Windows; elsewhere the user's own folder for the game (SDL_GetPrefPath: ~/.local/share/The Simpsons,
-   ~/Library/Application Support/The Simpsons), as the executable's may not be written; on a device its own folder
-   (device_folder: the Switch's on the SD card, the handheld's beside the executables on its card). The caller frees it
-   (SDL_free) */
+   ~/Library/Application Support/The Simpsons), as the executable's may not be written, unless a portable.txt beside
+   the game (beside the .app on macOS) asks for its folder, as on Windows; on a device its own folder (device_folder:
+   the Switch's on the SD card, the handheld's beside the executables on its card). The caller frees it (SDL_free) */
 static char *saves_folder(void)
 {
 #ifdef __SWITCH__
@@ -2273,32 +2357,68 @@ static char *saves_folder(void)
 #elif defined(_WIN32) || defined(SIMPSONS_HANDHELD)
 	return SDL_GetBasePath();
 #else
-	return SDL_GetPrefPath("", SAVES_NAME);
+	char *base = SDL_GetBasePath(), *folder = NULL;
+	char beside_app[1100], probe[1200];
+	const char *place = base && app_folder(base, beside_app, sizeof(beside_app)) ? beside_app : base;
+	FILE *portable;
+
+	if (place)
+	{
+		snprintf(probe, sizeof(probe), "%s" PORTABLE_FILE, place);
+		if ((portable = fopen(probe, "rb")) != NULL)
+		{
+			fclose(portable);
+			folder = SDL_strdup(place);
+		}
+	}
+	SDL_free(base);
+	return folder ? folder : SDL_GetPrefPath("", SAVES_NAME);
 #endif
 }
 
-/* The log: on Windows a game started with nowhere for its standard error to go (from Explorer, not a terminal) writes
-   it to FILE_NAME.log in the folder of what the game keeps; on the Switch, which has no console (and SDL no message
-   boxes there), always, in its folder on the SD card; on Android always, in the app's folder on the storage; elsewhere
-   it goes where it is sent (the terminal, the handheld's launcher's file) */
+/* The log into FILE_NAME.log in 'folder' (with its separator), the last runs' moved before it to FILE_NAME.1.log and
+   FILE_NAME.2.log, the older ones dropped (LOG_RUNS: the last runs' logs in a known place, the Recomp Standards'; a
+   launcher sends the newest with a crash report) */
+static void log_into(const char *folder)
+{
+	char path[1100], older[1100];
+
+	for (int run = LOG_RUNS - 1; run > 0; run--)
+	{
+		snprintf(older, sizeof(older), "%s" FILE_NAME ".%d.log", folder, run);
+		if (run > 1)
+			snprintf(path, sizeof(path), "%s" FILE_NAME ".%d.log", folder, run - 1);
+		else
+			snprintf(path, sizeof(path), "%s" FILE_NAME ".log", folder);
+		remove(older);
+		rename(path, older);
+	}
+	snprintf(path, sizeof(path), "%s" FILE_NAME ".log", folder);
+	if (freopen(path, "w", stderr))
+		setvbuf(stderr, NULL, _IONBF, 0);
+}
+
+/* The log: on Windows a game started with nowhere for its standard error to go (from Explorer, not a terminal), and on
+   Linux and macOS one whose standard error is not a terminal (a launcher's, Steam's, the Finder's), writes it to
+   FILE_NAME.log in the folder of what the game keeps; on the Switch, which has no console (and SDL no message boxes
+   there), always, in its folder on the SD card; on Android always, in the app's folder on the storage; elsewhere it
+   goes where it is sent (the terminal, the handheld's launcher's file). Each keeps the last runs' too (log_into) */
 static void open_log(void)
 {
 #ifdef __SWITCH__
 	mkdir("sdmc:/switch", 0777);
 	mkdir(SWITCH_FOLDER, 0777);
-	if (freopen(SWITCH_FOLDER "/" FILE_NAME ".log", "w", stderr))
-		setvbuf(stderr, NULL, _IONBF, 0);
+	log_into(SWITCH_FOLDER "/");
 #endif
 #ifdef __ANDROID__
 	/* (Android's standard error goes nowhere: the log in the app's folder on the storage, Android/data/<the
 	   app>/files, where the player puts the ROM set and can read it) */
 	if (SDL_AndroidGetExternalStoragePath())
 	{
-		char path[1100];
+		char folder[1100];
 
-		snprintf(path, sizeof(path), "%s/" FILE_NAME ".log", SDL_AndroidGetExternalStoragePath());
-		if (freopen(path, "w", stderr))
-			setvbuf(stderr, NULL, _IONBF, 0);
+		snprintf(folder, sizeof(folder), "%s/", SDL_AndroidGetExternalStoragePath());
+		log_into(folder);
 	}
 #endif
 #if defined(__APPLE__) && TARGET_OS_IOS
@@ -2306,24 +2426,27 @@ static void open_log(void)
 		/* (an app's standard error reaches no one: the log in its Documents, where the player puts the ROM set and the
 		   Files app shows it) */
 		char *documents = ios_documents();
-		char path[1100];
 
-		snprintf(path, sizeof(path), "%s" FILE_NAME ".log", documents ? documents : "");
+		log_into(documents ? documents : "");
 		SDL_free(documents);
-		if (freopen(path, "w", stderr))
-			setvbuf(stderr, NULL, _IONBF, 0);
 	}
 #endif
 #ifdef _WIN32
 	if (_fileno(stderr) < 0)
 	{
 		char *saves = saves_folder();
-		char path[1100];
 
-		snprintf(path, sizeof(path), "%s" FILE_NAME ".log", saves ? saves : "");
+		log_into(saves ? saves : "");
 		SDL_free(saves);
-		if (freopen(path, "w", stderr))
-			setvbuf(stderr, NULL, _IONBF, 0);
+	}
+#endif
+#if !defined(_WIN32) && !defined(SIMPSONS_HANDHELD) && !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IOS)
+	if (!isatty(fileno(stderr)))
+	{
+		char *saves = saves_folder();
+
+		log_into(saves ? saves : "");
+		SDL_free(saves);
 	}
 #endif
 }
@@ -2730,7 +2853,7 @@ static bool find_assets(char *found, size_t size, const char **problem)
 	if (!ready)
 	{
 		snprintf(found, size, "%s" GAME_ASSETS_PACK_FILE, saves ? saves : (base ? base : ""));
-		if (first_run(TITLE, base, in_app ? beside_app : NULL, saves, found, stale[0] ? stale : NULL))
+		if (first_run(TITLE, base, in_app ? beside_app : NULL, saves, found, stale[0] ? stale : NULL, rom_set_option))
 		{
 			*problem = game_load(found);
 			ready = true;
@@ -2741,6 +2864,55 @@ static bool find_assets(char *found, size_t size, const char **problem)
 	SDL_free(base);
 	SDL_free(saves);
 	return ready;
+}
+
+/* --prepare: the pack made with no window, as the first run makes it (first_run_found: from the ROM set --game names,
+   else simpsons.zip or the folder rom beside the game or in the folder of what it keeps), into the folder of what the
+   game keeps, and loaded once to check it; for a launcher's setup step, which shows the lines "progress FRACTION TEXT"
+   of the standard output. With no ROM set anywhere the pack already there will do, if it loads. 0 when the pack is
+   ready, 2 when it is not (what is wrong on both outputs) */
+static int prepare(void)
+{
+	char *base = SDL_GetBasePath(), *saves = saves_folder();
+	char beside_app[1100], pack[1100], problem[1400];
+	const bool in_app = app_folder(base, beside_app, sizeof(beside_app)) != 0;
+	const char *failed;
+	bool ready;
+
+	snprintf(pack, sizeof(pack), "%s" GAME_ASSETS_PACK_FILE, saves ? saves : (base ? base : ""));
+	printf("progress 0.1 Reading the ROM set\n");
+	fflush(stdout);
+	ready = first_run_found(rom_set_option, base, in_app ? beside_app : NULL, saves, pack, problem, sizeof(problem));
+	if (!ready && !problem[0] && exists(pack))
+		ready = true;    /* (no ROM set, but the pack made of one before: if it loads) */
+	if (ready)
+	{
+		printf("progress 0.8 Checking the game's assets\n");
+		fflush(stdout);
+		if ((failed = game_load(pack)) != NULL)
+		{
+			snprintf(problem, sizeof(problem), "%s: %s", pack, failed);
+			fprintf(stderr, "%s\n", problem);
+			ready = false;
+		}
+	}
+	else if (!problem[0])
+	{
+		snprintf(problem, sizeof(problem), "No ROM set: name simpsons.zip (MAME's simpsons set, 4 Players World) with "
+			"--game, or put it beside the game.");
+		fprintf(stderr, "%s\n", problem);
+	}
+	if (ready)
+	{
+		fprintf(stderr, "Assets: %s\n", pack);
+		printf("progress 1 The game's assets are ready\n");
+	}
+	else
+		printf("%s\n", problem);    /* (a set's own problem is in the log already: first_run.c's say_problem) */
+	fflush(stdout);
+	SDL_free(base);
+	SDL_free(saves);
+	return ready ? 0 : 2;
 }
 #endif
 
@@ -2755,6 +2927,17 @@ static FILE *open_output(const char *path)
 	}
 	return file;
 }
+
+#ifndef SIMPSONS_HANDHELD
+/* RecompLauncher's Big Picture, its full-screen view for a controller and the couch, starts the game (its
+   RECOMPLAUNCHER_MODE): the game full screen too, as players there expect. Not in a scripted run */
+static bool launcher_big_picture(void)
+{
+	const char *mode = getenv("RECOMPLAUNCHER_MODE");
+
+	return !scripted && mode && strcmp(mode, "bigpicture") == 0;
+}
+#endif
 
 static void fail(const char *message)
 {
@@ -2790,6 +2973,9 @@ int main(int argc, char **argv)
 	const char *assets = NULL;
 	const char *script_path = NULL;
 	bool service = false;
+#ifndef SIMPSONS_HANDHELD
+	bool prepare_option = false;       /* --prepare */
+#endif
 	char message[1200];
 	int scale = WINDOW_SCALE;
 #ifdef SIMPSONS_CONSOLE
@@ -2835,6 +3021,14 @@ int main(int argc, char **argv)
 			while (index + 1 < argc && argv[index + 1][0] != '-' && dump_count < MAX_DUMPS)
 				dump_frames[dump_count++] = strtoull(argv[++index], NULL, 10);
 		}
+#ifndef SIMPSONS_HANDHELD
+		else if (strcmp(argv[index], "--game") == 0 && index + 1 < argc)
+			rom_set_option = argv[++index];
+		else if (strncmp(argv[index], "--game=", 7) == 0 && argv[index][7])
+			rom_set_option = argv[index] + 7;    /* (one argument: a launcher leaves it out whole without a path) */
+		else if (strcmp(argv[index], "--prepare") == 0)
+			prepare_option = true;
+#endif
 #ifdef SIMPSONS_CONSOLE
 		else if (strcmp(argv[index], "--actions") == 0 && index + 1 < argc)
 		{
@@ -2892,6 +3086,10 @@ int main(int argc, char **argv)
 			fail(USAGE);
 	}
 	scripted = scripted || script_path || hashes || video_hashes || sound_hashes || dump_count;
+#ifndef SIMPSONS_HANDHELD
+	if (prepare_option)
+		return prepare();    /* (the pack alone, no window: a launcher's setup step) */
+#endif
 #ifdef _WIN32
 	/* Direct3D 11 for the picture on Windows (SDL 2's first is Direct3D 9: Sebas, on tmnt-port, "pone por default que
 	   use dx11"): its swap chain is DXGI's flip model, the frames' pace steadier in a window with VSYNC, and Alt+Tab or
@@ -2899,6 +3097,11 @@ int main(int argc, char **argv)
 	   the environment still chooses; a renderer named by the hint has SDL's batching off unless it is asked for */
 	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
 	SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+	/* The screen's own pixels where Windows scales the desktop (the players' issue 12: a 3840 x 2160 screen at 225 %
+	   gave the game 1707 x 960, which Windows stretched with its bilinear): the game DPI-aware, SDL's windows in the
+	   desktop's points (as large as they were) and their pictures in the screen's pixels (present draws in the
+	   renderer's output, its pixels; the first run's window keeps its layout, first_run.c) */
+	SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
 #endif
 #ifdef __ANDROID__
 	SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");    /* (back is the menus' back and the pause, never the end) */
@@ -2941,6 +3144,13 @@ int main(int argc, char **argv)
 		{
 			snprintf(settings_path, sizeof(settings_path), "%s" SETTINGS_FILE, saves ? saves : "");
 			load_settings();
+#ifndef SIMPSONS_HANDHELD
+			if (launcher_big_picture() && !console_settings.full_screen)
+			{
+				console_settings.full_screen = true;    /* (this time: simpsons.ini keeps its window, save_settings) */
+				launcher_full_screen = true;
+			}
+#endif
 			snprintf(scores_path, sizeof(scores_path), "%s" SCORES_FILE, saves ? saves : "");
 			snprintf(state_path, sizeof(state_path), "%s" STATE_FILE, saves ? saves : "");
 		}
@@ -3036,6 +3246,18 @@ int main(int argc, char **argv)
 
 		if (renderer && SDL_GetRendererInfo(renderer, &info) == 0)
 			fprintf(stderr, "Renderer: %s\n", info.name);    /* (the log says which one came: a player's question) */
+#ifndef SIMPSONS_HANDHELD
+		if (renderer)
+		{
+			/* (the window and the pixels its picture has: the same but where the desktop is scaled, issue 12. The
+			   computers': the Anbernic's stub has no SDL_GetWindowSize) */
+			int points = 0, points_high = 0, pixels = 0, pixels_high = 0;
+
+			SDL_GetWindowSize(window, &points, &points_high);
+			SDL_GetRendererOutputSize(renderer, &pixels, &pixels_high);
+			fprintf(stderr, "Window: %dx%d, its picture %dx%d pixels\n", points, points_high, pixels, pixels_high);
+		}
+#endif
 	}
 #ifdef SIMPSONS_CONSOLE
 	texture = renderer ? SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING,
@@ -3050,6 +3272,10 @@ int main(int argc, char **argv)
 		fail(message);
 	}
 	SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
+#if !defined(SIMPSONS_CONSOLE) && !defined(SIMPSONS_HANDHELD)
+	if (launcher_big_picture())
+		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);    /* (The Simpsons': its settings, above) */
+#endif
 #ifdef SIMPSONS_TOUCH
 	{
 #ifdef __ANDROID__

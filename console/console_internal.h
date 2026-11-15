@@ -105,7 +105,8 @@ enum
 	MODE_FREE_PLAY,            /* FREE PLAY: the game as ARCADE's, OPTIONS' lives, as many continues as STARTs */
 	MODE_BOSS_RUSH,            /* the bosses one after another */
 	MODE_BONUS_GAMES,          /* the two bonus stages in a row */
-	MODE_FRANK_GRIMES          /* FRANK GRIMES LIFE: one player against what four would have */
+	MODE_FRANK_GRIMES,         /* FRANK GRIMES LIFE: one player against what four would have */
+	MODE_INTRO                 /* the menu's INTRO: the story before stage 1, then the menu */
 };
 
 extern console_state console;
@@ -226,6 +227,13 @@ void free_play_start(int player);
 void boss_rush_start(int player);
 void bonus_games_start(int player);
 void frank_grimes_start(int player);
+/* The menu's INTRO (or the menu left alone a while), started for 'player': the story before stage 1 alone, the choice
+   made at once under black, then the menu again */
+void intro_start(int player);
+/* Whether the character choice is made at once, with no one choosing (INTRO's) */
+bool modes_choice_made(void);
+/* The menu's INTRO line (menu.c): where the menu comes back to after it */
+int menu_intro_line(void);
 /* The per-game state as a mode's game starts (console_start_game; RESTART's too) */
 void modes_game_starting(void);
 /* Whether the Konami code's page's rules (its lives, health and characters) hold in the game: a mode's, the code

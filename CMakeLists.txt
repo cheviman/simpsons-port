@@ -407,11 +407,18 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_DEVICE)
 		# bundle, 'identifier' its own: SDL_GetBasePath finds them there), and on Linux the icon's picture beside it
 		# (ports/sdl2/icon/simpsons.png: the desktop entries take it); SDL2's library
 		# beside it unless it is inside; the game's stack
+		# (a ROM set packed as .7z: the LZMA SDK's 7z decoder, public domain, ports/sdl2/lzma, unchanged)
+		if(NOT TARGET simpsons_7z)
+			file(GLOB SIMPSONS_7Z_SOURCES ${CMAKE_SOURCE_DIR}/ports/sdl2/lzma/*.c)
+			add_library(simpsons_7z STATIC ${SIMPSONS_7Z_SOURCES} ports/sdl2/rom_set_7z.c)
+			target_include_directories(simpsons_7z PUBLIC ports/sdl2)
+			target_compile_definitions(simpsons_7z PRIVATE Z7_EXTRACT_ONLY)
+		endif()
 		function(simpsons_window target name identifier program)
 			add_executable(${target} WIN32 MACOSX_BUNDLE ports/sdl2/main.c ports/sdl2/first_run.c ports/sdl2/controls.c
 				ports/sdl2/letters.c)
 			target_include_directories(${target} PRIVATE ports/sdl2)
-			target_link_libraries(${target} PRIVATE ${program} simpsons_controller_db ${SIMPSONS_SDL2})
+			target_link_libraries(${target} PRIVATE ${program} simpsons_controller_db simpsons_7z ${SIMPSONS_SDL2})
 			set_target_properties(${target} PROPERTIES OUTPUT_NAME ${name}
 				MACOSX_BUNDLE_BUNDLE_NAME ${name} MACOSX_BUNDLE_GUI_IDENTIFIER ${identifier}
 				MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION} MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
@@ -513,9 +520,10 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_DEVICE)
 		# The Windows package (simpsons_package): what a player downloads, package/simpsons-windows-x64.zip in the build
 		# folder (SIMPSONS_PACKAGE_DIR), a folder simpsons with The Simpsons Arcade Game.exe and The Simpsons Mr. Plow Edition.exe (SDL2
 		# inside them with SIMPSONS_STATIC_SDL2, else SDL2.dll beside them), the pictures they write with (font.bmp,
-		# input_prompts.bmp), the package's README.txt (docs/package), the project's LICENSE.txt, and licenses/ with the
-		# terms of what is in it or what it follows: MAME's and ymfm's (the board's video and sound), SDL2's,
-		# SDL_GameControllerDB's and Kenney's. The two games alone; nothing of the ROM set
+		# input_prompts.bmp), the package's README.txt and recomplauncher.json (docs/package: how RecompLauncher sets
+		# The Simpsons Mr. Plow Edition up, starts it and shows its settings), the project's LICENSE.txt, and licenses/
+		# with the terms of what is in it or what it follows: MAME's and ymfm's (the board's video and sound), SDL2's,
+		# SDL_GameControllerDB's, Kenney's and the LZMA SDK's. The two games alone; nothing of the ROM set
 		set(SIMPSONS_PACKAGE_DIR ${CMAKE_BINARY_DIR}/package CACHE PATH "Where simpsons_package writes the package")
 		if(WIN32 AND TARGET simpsons_console)
 			set(SIMPSONS_PACKAGE_NAME simpsons-windows-x64)
@@ -541,12 +549,15 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_DEVICE)
 				COMMAND ${CMAKE_COMMAND} -E make_directory ${SIMPSONS_PACKED}/licenses
 				COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:simpsons> $<TARGET_FILE:simpsons_console>
 					${CMAKE_SOURCE_DIR}/ports/sdl2/font/font.bmp ${CMAKE_SOURCE_DIR}/ports/sdl2/prompts/input_prompts.bmp
+					${CMAKE_SOURCE_DIR}/docs/package/recomplauncher.json
 					${SIMPSONS_PACKED}
 				${SIMPSONS_PACKED_SDL2}
 				COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/docs/package/README.txt ${SIMPSONS_PACKED}/README.txt
 				COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/LICENSE ${SIMPSONS_PACKED}/LICENSE.txt
 				COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/docs/package/licenses/MAME.txt
 					${SIMPSONS_PACKED}/licenses/MAME.txt
+				COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/docs/package/licenses/LZMA-SDK.txt
+					${SIMPSONS_PACKED}/licenses/LZMA-SDK.txt
 				COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/tools/core/konami/reference/ymfm/LICENSE
 					${SIMPSONS_PACKED}/licenses/ymfm.txt
 				${SIMPSONS_PACKED_SDL2_LICENSE}

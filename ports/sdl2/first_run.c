@@ -1,10 +1,10 @@
 /**
  *    Name:        first_run.c
- *    Description: the first run: the game's assets pack out of the player's ROM set, found beside the game or where
- *                 it keeps its files, or dropped on a window that asks for it
+ *    Description: the first run: the game's assets pack out of the player's ROM set, the one --game names, one found
+ *                 beside the game or where it keeps its files, or one dropped on a window that asks for it
  *    Version:     0.1.0
  *    Created:     13-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    15-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -17,6 +17,7 @@
  */
 #include "first_run.h"
 #include "letters.h"
+#include "rom_set_7z.h"
 
 #include "game/assets.h"
 #include "game/game.h"
@@ -33,6 +34,8 @@
 #endif
 
 #define ROM_SET_FILE    "simpsons.zip"
+#define ROM_SET_7Z_FILE "simpsons.7z"    /* (the set packed by 7-Zip: rom_set_7z.c) */
+#define ROM_SET_7Z_TEMP "simpsons-7z"    /* (its files out for the loader, beside the pack, then taken away) */
 #define ROM_SET_FOLDER  "rom"
 #define ROM_SET_PROBE   "072-g02.16c"    /* a file of the set by MAME's name: a folder of its files */
 #define WINDOW_WIDTH    640
@@ -94,7 +97,8 @@ static void draw_window(SDL_Renderer *renderer, const letters *font, const char 
 	{
 		letters_draw(renderer, font, "Drop the arcade ROM set here", y, 2, white, WINDOW_WIDTH);
 		y += LETTERS_CELL * 2 + LINE_GAP;
-		letters_draw(renderer, font, "simpsons.zip: MAME's set, 4 Players World (set 1)", y, 1, white, WINDOW_WIDTH);
+		letters_draw(renderer, font, "simpsons.zip or .7z: MAME's set, 4 Players World (set 1)", y, 1, white,
+			WINDOW_WIDTH);
 		y += LETTERS_CELL + LINE_GAP;
 		letters_draw(renderer, font, "The game takes its graphics and sounds from it, once.", y, 1, white, WINDOW_WIDTH);
 		y += LETTERS_CELL + LINE_GAP;
@@ -195,14 +199,36 @@ static void say_problem(const char *failed, const char *path, char *problem, siz
 	fprintf(stderr, "%s\n", problem);
 }
 
-/* The pack 'pack' made from the ROM set at 'source' (its .zip or its folder): 1, or 0 with what went wrong in
-   'problem' */
+/* The pack 'pack' made from the ROM set at 'source' (its .zip, its .7z or its folder): 1, or 0 with what went wrong in
+   'problem'. A .7z's files are put in a folder of their own beside the pack (ROM_SET_7Z_TEMP), read from there as a
+   set's folder, and taken away */
 static int pack_made(const char *source, const char *pack, char *problem, size_t size)
 {
 	const char *failed;
+	rom_set_7z_unpacked unpacked;
+	char folder[1100];
 
 	fprintf(stderr, "The assets out of the ROM set %s into %s\n", source, pack);
-	if ((failed = game_load_rom_set(source)) != NULL)
+	if (rom_set_is_7z(source))
+	{
+		const char *separator = strrchr(pack, '/');
+		const char *other = strrchr(pack, '\\');
+		const size_t place = other && (!separator || other > separator) ? (size_t)(other - pack + 1)
+			: separator ? (size_t)(separator - pack + 1) : 0;
+
+		snprintf(folder, sizeof(folder), "%.*s" ROM_SET_7Z_TEMP "/", (int)place, pack);
+		if ((failed = rom_set_7z_unpack(source, folder, &unpacked)) != NULL)
+		{
+			say_problem(failed, source, problem, size);
+			return 0;
+		}
+		folder[strlen(folder) - 1] = '\0';    /* (the loader's folder, without its separator) */
+		failed = game_load_rom_set(folder);
+		rom_set_7z_remove(&unpacked);
+	}
+	else
+		failed = game_load_rom_set(source);
+	if (failed)
 	{
 		say_problem(failed, NULL, problem, size);
 		return 0;
@@ -216,9 +242,9 @@ static int pack_made(const char *source, const char *pack, char *problem, size_t
 	return 1;
 }
 
-/* The pack made from the ROM set in 'place' (a folder, with its separator): simpsons.zip there, or its folder rom/
-   with the set's files or its .zip. 1 when it is made; a set there it could not be made from leaves what went wrong
-   in 'problem' */
+/* The pack made from the ROM set in 'place' (a folder, with its separator): simpsons.zip or simpsons.7z there, or its
+   folder rom/ with the set's files or its .zip. 1 when it is made; a set there it could not be made from leaves what
+   went wrong in 'problem' */
 static int made_from(const char *place, const char *pack, char *problem, size_t size)
 {
 	char source[1024], probe[1100];
@@ -226,6 +252,8 @@ static int made_from(const char *place, const char *pack, char *problem, size_t 
 	if (!place)
 		return 0;
 	snprintf(source, sizeof(source), "%s" ROM_SET_FILE, place);
+	if (!exists(source))
+		snprintf(source, sizeof(source), "%s" ROM_SET_7Z_FILE, place);
 	if (!exists(source))
 	{
 		snprintf(source, sizeof(source), "%s" ROM_SET_FOLDER, place);
@@ -240,28 +268,53 @@ static int made_from(const char *place, const char *pack, char *problem, size_t 
 	return pack_made(source, pack, problem, size);
 }
 
+int first_run_found(const char *given, const char *base, const char *beside, const char *saves, const char *pack,
+	char *problem, size_t size)
+{
+	problem[0] = '\0';
+	if (given)
+	{
+		/* (its .zip, its .7z or its folder of files, as one dropped on the window; or a folder with simpsons.zip or
+		   simpsons.7z in it) */
+		char inside[1100];
+
+		snprintf(inside, sizeof(inside), "%s/" ROM_SET_FILE, given);
+		if (!exists(inside))
+			snprintf(inside, sizeof(inside), "%s/" ROM_SET_7Z_FILE, given);
+		if (pack_made(exists(inside) ? inside : given, pack, problem, size))
+			return 1;
+	}
+	return made_from(base, pack, problem, size) || made_from(beside, pack, problem, size)
+		|| ((!base || !saves || strcmp(base, saves) != 0) && made_from(saves, pack, problem, size));
+}
+
 int first_run(const char *title, const char *base, const char *beside, const char *saves, const char *pack,
-	const char *stale)
+	const char *stale, const char *given)
 {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	letters font;
-	char problem[600] = "";
+	char problem[600];
 	int done = 0, running = 1;
 
-	if (made_from(base, pack, problem, sizeof(problem))
-		|| made_from(beside, pack, problem, sizeof(problem))
-		|| ((!base || !saves || strcmp(base, saves) != 0) && made_from(saves, pack, problem, sizeof(problem))))
+	if (first_run_found(given, base, beside, saves, pack, problem, sizeof(problem)))
 		return 1;
 	if (stale && !problem[0])
 	{
 		/* (the pack the game found, as its load said what is wrong with it) */
 		snprintf(problem, sizeof(problem), GAME_ASSETS_PACK_FILE ": %s", stale);
 	}
-	fprintf(stderr, "The window asks for the ROM set (" ROM_SET_FILE ", or the folder " ROM_SET_FOLDER ", beside the "
-		"game or dropped on it)%s%s\n", problem[0] ? ". " : "", problem);
+	fprintf(stderr, "The window asks for the ROM set (" ROM_SET_FILE ", " ROM_SET_7Z_FILE ", or the folder "
+		ROM_SET_FOLDER ", beside the game or dropped on it)%s%s\n", problem[0] ? ". " : "", problem);
 	window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
 	renderer = window ? SDL_CreateRenderer(window, -1, 0) : NULL;
+	if (renderer)
+	{
+		/* (the window's layout in its own size, a whole number of times it where the desktop is scaled and the picture
+		   has more pixels than that: main.c's SDL_HINT_WINDOWS_DPI_SCALING, the players' issue 12) */
+		SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
+		SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+	}
 	if (!renderer || !letters_load(renderer, base, &font))
 	{
 		char message[900];
@@ -272,8 +325,8 @@ int first_run(const char *title, const char *base, const char *beside, const cha
 		if (window)
 			SDL_DestroyWindow(window);
 		snprintf(message, sizeof(message), "The game takes its graphics and sounds from the arcade ROM set "
-			"(simpsons.zip: MAME's set, 4 Players World), and there is none beside it; the window that asks for one does "
-			"not open (no font.bmp beside the game, or no window).%s%s", problem[0] ? "\n\n" : "", problem);
+			"(simpsons.zip or .7z: MAME's set, 4 Players World), and there is none beside it; the window that asks for "
+			"one does not open (no font.bmp beside the game, or no window).%s%s", problem[0] ? "\n\n" : "", problem);
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, title, message, NULL);
 		return 0;
 	}

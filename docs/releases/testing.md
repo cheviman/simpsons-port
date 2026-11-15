@@ -10,6 +10,27 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
   the picture's right side; they run out of the picture, and the scene ends a moment later than in 4:3.
 - **WIDE, stage 1's shops** (Sebas, on his phone): the restaurant's cook stands at its door again, no longer at
   the video arcade's in 20:9.
+- **WIDE, stage 3's elevator** (the players' issue 5): centred, the same black at both sides, from the platform's
+  standing until the play goes on at the shaft's top (it stood to the left: 16 pixels in 16:10, the Steam Deck's,
+  up to 72 in 20:9), with no jump as it begins or ends; the players stay on the platform as on the cabinet.
+- **WIDE, stage 2's Otto** (the players' issue 16): Otto is at his stall from the stage's start, while the family
+  comes down in the balloon, instead of appearing as they drop from it (20:9, and at 16:9's edge). Stage 1's restaurant
+  door, with its OPEN sign, is there from the start too.
+- **RecompLauncher** (Sebas): the computers' packages carry `recomplauncher.json`, so RecompLauncher can install The
+  Simpsons Mr. Plow Edition, ask for your `simpsons.zip`, make the game's assets of it, and show OPTIONS' settings
+  on the game's page. A shortcut can name the ROM set too, with `--game PATH`. Without them, nothing changes.
+- **Bart's shirt** (the players' issue 14): orange too as he falls into the gorge at stage 5's end and in its water,
+  and all of it on the walk to Channel 6; Maggie's onesie stays light blue when Bart picks her up.
+- **Barney's shirt** (Sebas): a salmon instead of the cabinet's green (stage 4, at Moe's); his hair stays yellow.
+- **INTRO** on the menu (the players' issue 8): the story before stage 1, Smithers taking the diamond and Maggie with
+  it; it plays by itself when the menu is left alone half a minute, as an arcade's attract mode does. START skips its
+  scenes, Escape or Back leaves it.
+- **High-DPI screens on Windows** (the players' issue 12): the game draws at the screen's own pixels where Windows
+  scales the desktop (225 % on a 4K screen gave it 1707 x 960, stretched), its windows as large as before.
+- **simpsons.7z**: MAME's set packed by 7-Zip works as the .zip does.
+- **The Simpsons Arcade Game with a controller**: Back and Start held together two seconds quit it.
+- **The logs of the last three runs** are kept (simpsons.log, .1.log, .2.log), on Linux and macOS too; there, a
+  portable.txt beside the games keeps everything in their folder. simpsons.ini explains each setting.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.

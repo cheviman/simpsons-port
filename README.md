@@ -1,5 +1,7 @@
 # The Simpsons — port
 
+<a href="https://recomplauncher.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
+
 Konami's 1991 arcade game *The Simpsons* as a native game for computers, the Nintendo Switch, Android, iPhone and
 iPad, and Anbernic's handhelds, built on its decompilation,
 [simpsons-decomp](https://github.com/cheviman/simpsons-decomp): both of the game's programs (the Konami 053248's
@@ -30,7 +32,10 @@ and Asian ones) have program ROMs of their own, which the decompilation does not
 Download the package for Windows, Linux or macOS from the
 [releases](https://github.com/cheviman/simpsons-port/releases). Keep `simpsons.zip` beside the game, or drop it on
 its window when it asks: the first time, it takes the assets out of it (`simpsons.assets`, a fraction of a second),
-and plays from them from then on.
+and plays from them from then on (`simpsons.7z`, the set packed by 7-Zip, works too). A shortcut or a launcher can
+name it instead, with `--game PATH` (the .zip, the .7z, or its folder); `--prepare` makes the assets with no window and
+ends. RecompLauncher sets The Simpsons Mr. Plow Edition up
+this way, from the release's `recomplauncher.json`, and shows OPTIONS' settings on the game's page.
 
 Each device has a package of its own, its games without assets, beside the tools that make your own of them on a
 computer (for Windows, macOS and Linux):
@@ -63,6 +68,8 @@ What a tool makes has the game's data in it: it is yours alone, never share it. 
     out of sight.
   - **BONUS GAMES**: the two bonus stages in a row, for one to four players, with their results.
   - **FRANK GRIMES LIFE**: one player, the whole game, against what four players would face.
+- **INTRO**: the story before stage 1, Smithers taking the diamond and Maggie with it; it plays by itself too when
+  the menu is left alone half a minute. START skips its scenes, Escape or Back leaves it.
 - **MULTIPLAYER**: up to four devices on the same local network play one game, a character each: one hosts a room
   (HOST), the others find it (JOIN), and the host's START begins ARCADE's game on all of them with the host's
   settings. Built on [arcade-lan](https://github.com/cheviman/arcade-lan); Escape or Back leaves the game.
@@ -75,7 +82,8 @@ What a tool makes has the game's data in it: it is yours alone, never share it. 
 - **The pause** in a game: CONTINUE, SAVE STATE, LOAD STATE, RESTART, QUIT GAME. In the story scenes, the stages'
   title cards and ends and the ending, START skips the scene instead (as the attack does), and nothing pauses there.
 - **The high scores** are kept between sessions (the cabinet forgets them at power-off).
-- **Bart's shirt** is orange, as on the show (the cabinet dresses him in light blue).
+- **Bart's shirt** is orange, as on the show (the cabinet dresses him in light blue), and **Barney's** a salmon (the
+  cabinet's is green).
 - And the Konami code on the menu: a stage select, infinite lives or health, and two or more players with the same
   character.
 
@@ -91,7 +99,8 @@ What a tool makes has the game's data in it: it is yours alone, never share it. 
   format in `gamecontrollerdb.txt`, beside the game on Windows (in `~/.local/share/The Simpsons` on Linux,
   `~/Library/Application Support/The Simpsons` on macOS).
 - **The Simpsons Arcade Game**: 5 to 8 put a coin in each slot (a controller's Back, its player's), F2 is the test
-  switch, and a coin and the attack bring a player in.
+  switch, and a coin and the attack bring a player in. Escape quits, or a controller's Back and Start held together two
+  seconds.
 - **Touch screens** (Android, iPhone, iPad): a stick where your left thumb lands, ATTACK and JUMP at the right,
   START (COIN in The Simpsons Arcade Game); a controller hides them.
 
@@ -138,6 +147,8 @@ anyone asks you to pay for these games, it is not this project.
   `k053251.cpp` and `k053260.cpp` and of ymfm's OPM (all BSD-3-Clause).
 - The game controllers' mappings are [SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB)'s
   (`ports/sdl2/controllerdb`, zlib License), built into the games on the computers, Android and iOS.
+- A ROM set packed as .7z is read with the [LZMA SDK](https://www.7-zip.org/sdk.html)'s 7z decoder
+  (`ports/sdl2/lzma`, public domain), built into the games on the computers.
 - The first run's window writes with Kenney Mini and CONTROLS shows Kenney's Input Prompts (www.kenney.nl), CC0.
   The window port links SDL2 (zlib License); the packages carry it inside the executables, with its terms and the
   ones above in `licenses/`.

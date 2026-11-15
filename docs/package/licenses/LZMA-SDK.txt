@@ -1,0 +1,8 @@
+LZMA SDK 26.06 (the 7z decoder the games read a ROM set packed as .7z with)
+https://www.7-zip.org/sdk.html
+
+LZMA SDK is written and placed in the public domain by Igor Pavlov.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute the
+original LZMA SDK code, either in source code form or as a compiled binary, for
+any purpose, commercial or non-commercial, and by any means.

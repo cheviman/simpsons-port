@@ -1,10 +1,10 @@
 /**
  *    Name:        bart_shirt.c
- *    Description: Bart's shirt in the show's orange: the colours the video draws his shirt's pens in, the board's
- *                 palette and every other pixel as the cabinet has them
+ *    Description: Bart's shirt in the show's orange, and Barney's in a salmon: the colours the video draws their
+ *                 shirts' pens in, the board's palette and every other pixel as the cabinet has them
  *    Version:     0.1.0
  *    Created:     13-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    15-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -30,12 +30,17 @@
  *    - the ending's family walking away under the stars (kind 14, colour 6): his sprites of it, the lists' entries
  *      5988-5A5F of 2 x 2 to 4 x 4 cells (Maggie's there, crawling with the same pen, are 1 x 2; the diamond's are
  *      past 5A5F);
+ *    - Bart falling into the gorge at stage 5's end and in its water (the scenery's kind, 10, colour 6: its six
+ *      sprites of him, gorge_bart_codes; its other lists with the pen are the water's splashes), the players' issue 14;
  *    - the pictures drawn in the tile layers, by their map's cells and the picture's tiles (the rules below): Bart's
  *      profile and the family on the couch in the attract mode, Maggie and the diamond in the first story, the
  *      family's hug at the ending, and the family walking to Channel 6 after the second bonus game.
- *    In all of those sprites pen 7 is the shirt. Pen 8 is the shirt's shade and the shorts: each frame of them is
- *    assembled as the sprite engine lays it out, and a component of pen 8 is the shirt's shade when it touches the
- *    shirt (pen 7) on half its border or more that is not the outline (pen 3), and not the shorts' own shade (pen 12);
+ *    In all of those sprites pen 7 is the shirt, but in Maggie standing (sprite 5974, 1 x 2 cells), which Bart's own
+ *    lists draw too (02's 6130 in colour 6, the far family's 7F76 in colour 0, the same list as kind 39's): her onesie,
+ *    left light blue (the players' issue 14: Maggie orange when Bart picks her up). Pen 8 is the shirt's shade and
+ *    the shorts: each frame of them is assembled as the sprite engine lays it out, and a component of pen 8 is the
+ *    shirt's shade when it touches the shirt (pen 7) on half its border or more that is not the outline (pen 3), and
+ *    not the shorts' own shade (pen 12);
  *    in a component that touches it (the shorts), a pixel is the shirt's shade where its run in its row is three or
  *    fewer and ends at the shirt (the back's edge going down to the shorts). A cell's pixel is the same in every
  *    frame that uses it: the frames vote, and the shade's pixels are those most of them say. Those pixels are drawn in
@@ -49,6 +54,14 @@
  *    on each component not at its end) is the same fade of the orange, and any other colour there turns from blue to
  *    orange by how blue it is. For checks, SIMPSONS_BART_SHIRT=arcade in the environment draws it as the cabinet does
  *    (a scripted run takes no settings file).
+ *
+ *    Barney, stage 4's bystander at Moe's (kind 8C; 21 has the same lists, colour 9 always; Sebas, 15-11-2026: "dejá
+ *    el pelo amarillo y cambiale el color de la remera y listo", the colour #D46F63, after his hair in brown was
+ *    tried and left as the cabinet has it): his green shirt (pen 4, 2E00) and its shade (pen 5, 1D40) in that salmon
+ *    and a salmon as much darker. Pen 4 is his shoes' stripes too: his 23 frames are assembled as Bart's, and a cell
+ *    is the shirt's where most of its pen 4 and 5 pixels are at the body's height (BARNEY_FEET_ROWS above his feet or
+ *    more), the shoes' cells left green. A fade of the green is the same fade of the salmon. The same setting as
+ *    Bart's shirt (the show's colours), the same check's switch.
  */
 #include "console_internal.h"
 
@@ -72,6 +85,14 @@
 #define KIND_FAT_GOON       0x81u
 #define KIND_GOON_2         0x97u
 #define KIND_FAR_FAMILY     0xA4u       /* and the family far away */
+#define KIND_SCENERY        0x10u       /* Moe's and the gorge's scenery: the family falling into the gorge */
+#define MAGGIE_FIGURE       0x5974u     /* Maggie standing (1 x 2 cells), in Bart's lists too (02's 6130, A4's and
+                                           39's 7F76): her onesie is the shirt's pen, never his */
+#define KIND_BARNEY         0x8Cu       /* stage 4's bystander at Moe's, Barney (barney_bystander_update) */
+#define BARNEY_COLOUR       9u          /* his colour code: pen 4 his shirt's green (and his shoes' stripes), */
+#define BARNEY_SHIRT_PEN    4
+#define BARNEY_SHADE_PEN    5           /* 5 its shade */
+#define BARNEY_FEET_ROWS    16          /* (a pixel this far above his feet or more is the body's, else the shoes') */
 #define PLAYERS_COLOUR      0u          /* the players' palette */
 #define FAMILY_COLOUR       6u          /* the family's (the same pens) */
 #define FAMILY_BART_FIRST   0x5988u     /* his sprites in the family's lists */
@@ -93,6 +114,15 @@ static const int arcade_shirt[3] = { 0, 24, 31 };
 static const int arcade_shade[3] = { 0, 18, 30 };
 static const int orange_shirt[3] = { 31, 10, 4 };    /* (the attract mode's opening's Bart) */
 
+/* Barney's shirt's green and its shade, and Sebas's colour for it, #D46F63 (212, 111, 99) */
+static const int barney_green[3] = { 0, 16, 11 };
+static const int barney_shade[3] = { 0, 10, 7 };
+static const int barney_salmon[3] = { 26, 14, 12 };
+
+/* Bart's sprites in the gorge (the scenery's lists 7C9E, falling, and 7DE2, in the water, in the family's colour;
+   its other lists there with the shirt's pen are the water's splashes) */
+static const uint16_t gorge_bart_codes[] = { 0x76D1, 0x76D4, 0x76D9, 0x7740, 0x7750, 0x7790 };
+
 /* The pictures in the tile layers: Bart's shirt's map cells (columns, rows), the picture's tiles there, its pen */
 static const simpsons_video_tile_rule shirt_tiles[] = {
 	{ LAYER_A, 11, 23, 30, 27, 0x5B9C, 0x5BE9, PEN(7) },    /* the attract mode's profile of Bart ("YO, MAN!") */
@@ -100,10 +130,13 @@ static const simpsons_video_tile_rule shirt_tiles[] = {
 	{ LAYER_B, 40, 23, 44, 25, 0x41E8, 0x4225, PEN(7) },    /* story 1: Maggie with the diamond, the family left */
 	{ LAYER_B, 21, 21, 28, 27, 0x452A, 0x4591, PEN(7) },    /* the ending's hug (Maggie's onesie, the same tiles' */
 	{ LAYER_B, 23, 20, 28, 20, 0x452A, 0x4591, PEN(7) },    /* pen, is above and left of these) */
-	{ LAYER_B, 9, 25, 16, 31, 0x6280, 0x62CF, PEN(4) },     /* the family walking to Channel 6 (bonus 2's end) */
+	{ LAYER_B, 9, 25, 16, 31, 0x6280, 0x62CF, PEN(4) },     /* the family walking to Channel 6 (bonus 2's end), */
+	{ LAYER_B, 9, 25, 16, 31, 0x6201, 0x6201, PEN(4) },     /* his shirt's lower part there a plain tile (the
+	                                                           players' issue 14: blocks of light blue left) */
 };
 
 static uint16_t cell_pens[CELLS];
+static uint16_t barney_body[CELLS], barney_feet[CELLS];    /* (his cells' pen 4 and 5 pixels: body, feet) */
 static uint32_t cell_colours[CELLS];
 static uint16_t cell_shades[CELLS];
 static uint8_t (*shade_masks)[32];
@@ -359,9 +392,9 @@ static void classify(canvas *frame)
    animations' table there, each animation's frames of 4 bytes up to its end, a frame's sprite list of its count plus
    one sprites of 6 bytes: code, colour, size, x, y). The table's animations are those before the first one's frames
    (the table comes first). Of each list, the sprites 'wanted' takes (when 'bart_lists' says, only of lists with a
-   sprite in the players' colour with the shirt's pen: Bart's): their cells' shirt pen recoloured in their colour, and
-   the frame they make classified */
-static void mark_kind(canvas *frame, unsigned kind, bool (*wanted)(const sprite *s), bool bart_lists)
+   sprite in the players' colour with the shirt's pen: Bart's), given to 'use' */
+static void walk_kind(canvas *frame, unsigned kind, bool (*wanted)(const sprite *s), bool bart_lists,
+	void (*use)(canvas *frame, const sprite *sprites, int count))
 {
 	const uint16_t set = (uint16_t)(kind & 0x80u ? animation_sets_high_ADDRESS + 2u * (kind & 0x7Fu)
 		: animation_sets_ADDRESS + 2u * kind);
@@ -402,26 +435,53 @@ static void mark_kind(canvas *frame, unsigned kind, bool (*wanted)(const sprite 
 				s.size = (unsigned)size;
 				s.x = (int8_t)x;
 				s.y = (int8_t)y;
-				if (!wanted(&s))
-					continue;
+				if (s.code == MAGGIE_FIGURE || !wanted(&s))
+					continue;    /* (Maggie's onesie stays light blue, whoever's list draws her) */
 				sprites[count++] = s;
 				barts = barts || (s.colour == PLAYERS_COLOUR && sprite_has_pen(&s, SHIRT_PEN));
 			}
-			if (!barts || !count)
-				continue;
-			for (int number = 0; number < count; number++)
-				for (unsigned row = 0; row < sprite_rows(&sprites[number]); row++)
-					for (unsigned column = 0; column < sprite_columns(&sprites[number]); column++)
-					{
-						const unsigned cell = sprite_cell(&sprites[number], column, row);
-
-						cell_pens[cell] |= PEN(SHIRT_PEN);
-						cell_colours[cell] |= 1u << sprites[number].colour;
-					}
-			assemble(frame, sprites, count);
-			classify(frame);
+			if (barts && count)
+				use(frame, sprites, count);
 		}
 	}
+}
+
+/* A frame of Bart's: its cells' shirt pen recoloured in their colour, and the frame classified (its shade) */
+static void mark_shirt(canvas *frame, const sprite *sprites, int count)
+{
+	for (int number = 0; number < count; number++)
+		for (unsigned row = 0; row < sprite_rows(&sprites[number]); row++)
+			for (unsigned column = 0; column < sprite_columns(&sprites[number]); column++)
+			{
+				const unsigned cell = sprite_cell(&sprites[number], column, row);
+
+				cell_pens[cell] |= PEN(SHIRT_PEN);
+				cell_colours[cell] |= 1u << sprites[number].colour;
+			}
+	assemble(frame, sprites, count);
+	classify(frame);
+}
+
+/* A frame of Barney's: each pixel of his shirt's pens counted for its cell, at the body or at the feet (see the top);
+   the canvas cleared after */
+static void count_barney(canvas *frame, const sprite *sprites, int count)
+{
+	assemble(frame, sprites, count);
+	for (int y = frame->top; y <= frame->bottom; y++)
+		for (int x = frame->left; x <= frame->right; x++)
+		{
+			const int at = y * CANVAS + x, pen = frame->pen[at];
+
+			if (pen == BARNEY_SHIRT_PEN || pen == BARNEY_SHADE_PEN)
+			{
+				uint16_t *counted = frame->bottom - y >= BARNEY_FEET_ROWS ? barney_body : barney_feet;
+
+				if (counted[frame->cell[at]] < UINT16_MAX)
+					counted[frame->cell[at]]++;
+			}
+			frame->pen[at] = 0;
+			frame->label[at] = 0;
+		}
 }
 
 static bool bart_colours(const sprite *s)
@@ -438,6 +498,19 @@ static bool family_bart(const sprite *s)
 {
 	return s->colour == FAMILY_COLOUR && s->code >= FAMILY_BART_FIRST && s->code <= FAMILY_BART_LAST
 		&& sprite_columns(s) * sprite_rows(s) >= FAMILY_BART_CELLS;
+}
+
+static bool barney_colour(const sprite *s)
+{
+	return s->colour == BARNEY_COLOUR;
+}
+
+static bool gorge_bart(const sprite *s)
+{
+	for (size_t index = 0; index < sizeof(gorge_bart_codes) / sizeof(gorge_bart_codes[0]); index++)
+		if (s->code == gorge_bart_codes[index])
+			return s->colour == FAMILY_COLOUR;
+	return false;
 }
 
 /* The shade's pixels of each cell: those most frames say */
@@ -479,7 +552,10 @@ static uint16_t faded(const int from[3], int steps)
 	return (uint16_t)(component[0] | component[1] << 5 | component[2] << 10);
 }
 
-/* The orange for a colour the palette gives Bart's shirt's pen */
+static int brightness(const int component[3]);
+
+/* The orange for a colour the palette gives Bart's shirt's pen (and the salmon for Barney's shirt's green, its
+   shade) */
 static uint16_t shirt_colour(uint16_t colour)
 {
 	const int red = colour & 31, green = (colour >> 5) & 31, blue = (colour >> 10) & 31;
@@ -489,6 +565,21 @@ static uint16_t shirt_colour(uint16_t colour)
 	for (int steps = -31; steps <= 31; steps++)
 		if (faded(arcade_shirt, steps) == (colour & 0x7FFFu))
 			return faded(orange_shirt, steps);
+	for (int steps = -31; steps <= 31; steps++)
+	{
+		/* (Barney's green, its shade: the salmon, and a salmon as much darker as the shade is than the green) */
+		if (faded(barney_green, steps) == (colour & 0x7FFFu))
+			return faded(barney_salmon, steps);
+		if (faded(barney_shade, steps) == (colour & 0x7FFFu))
+		{
+			const int lit = brightness(barney_green), dark = brightness(barney_shade);
+			int darker[3];
+
+			for (int index = 0; index < 3; index++)
+				darker[index] = (barney_salmon[index] * dark + lit / 2) / lit;
+			return faded(darker, steps);
+		}
+	}
 	/* (another colour: as blue as it is over its grey, that much orange over it) */
 	for (int index = 0; index < 3; index++)
 	{
@@ -532,13 +623,24 @@ static void make_tables(void)
 	vote_count = 0;
 	if (frame)
 	{
-		mark_kind(frame, KIND_BART, bart_colours, false);
-		mark_kind(frame, KIND_BART_FIGURE, players_colour, false);
-		mark_kind(frame, KIND_FAMILY, family_bart, false);
-		mark_kind(frame, KIND_GOON, players_colour, true);
-		mark_kind(frame, KIND_FAT_GOON, players_colour, true);
-		mark_kind(frame, KIND_GOON_2, players_colour, true);
-		mark_kind(frame, KIND_FAR_FAMILY, players_colour, true);
+		walk_kind(frame, KIND_BART, bart_colours, false, mark_shirt);
+		walk_kind(frame, KIND_BART_FIGURE, players_colour, false, mark_shirt);
+		walk_kind(frame, KIND_FAMILY, family_bart, false, mark_shirt);
+		walk_kind(frame, KIND_GOON, players_colour, true, mark_shirt);
+		walk_kind(frame, KIND_FAT_GOON, players_colour, true, mark_shirt);
+		walk_kind(frame, KIND_GOON_2, players_colour, true, mark_shirt);
+		walk_kind(frame, KIND_FAR_FAMILY, players_colour, true, mark_shirt);
+		walk_kind(frame, KIND_SCENERY, gorge_bart, false, mark_shirt);
+		memset(barney_body, 0, sizeof(barney_body));
+		memset(barney_feet, 0, sizeof(barney_feet));
+		walk_kind(frame, KIND_BARNEY, barney_colour, false, count_barney);
+		for (unsigned cell = 0; cell < CELLS; cell++)
+			if (barney_body[cell] > barney_feet[cell])
+			{
+				/* (his shirt's cells: their two pens in his colour; his shoes' keep their stripes) */
+				cell_pens[cell] |= PEN(BARNEY_SHIRT_PEN) | PEN(BARNEY_SHADE_PEN);
+				cell_colours[cell] |= 1u << BARNEY_COLOUR;
+			}
 		make_shade_masks();
 		free(frame);
 	}

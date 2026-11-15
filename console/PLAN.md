@@ -231,8 +231,9 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     player_check_motion, player_check_screen_edges (the players walk to the same distance from the picture's edges).
   - The other screens are pictures of the board's width, their sides their edges' colour where an edge is all of one
     (the menus' TV and the stage cards' TV: orange, lilac), else black: the portraits, the stories, the bonus stages,
-    the name entry, the ending, and stage 3's climb (its map black past the 288; the game draws its rows there with
-    offsets of their own). The presentation keeps the board's 320 on black. The pause greys the whole wider frame.
+    the name entry, the ending, and stage 3's elevator from the platform's standing (its map black past the 288; the
+    game draws its rows there with offsets of their own; 15-11-2026, centred, the platform's limits the cabinet's). The
+    presentation keeps the board's 320 on black. The pause greys the whole wider frame.
     OPTIONS' version at the window's right edge.
   - Checked (the console's executable, `--arcade-start` with tests/controls' scripts, `--wide-check`, SDL's dummy
     drivers): stages 1-8, bonus 1 and 2, continue, one and four players and story_untouched in 20:9, and the stages,
@@ -576,3 +577,86 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     start's goon, moved past the side as it was put in, was taken off at its first step (enemy_remove_off_screen
     with the board's 01C0); that frame's objects now have the sides the play comes with (play_sides_now), its spawns
     the board's (spawn_as_play_begins).
+- **15-11-2026, Barney's shirt** (Sebas: "hay que arreglar tmb el tema de los colores de barney, que estan los de
+  season1"): his hair was tried in brown first (his 23 frames assembled, the hair found round his eyes, the video given
+  a second colour by masks), and left as the cabinet has it, yellow ("no, quedo horrible", then "dejá el pelo
+  amarillo y cambiale el color de la remera y listo"); his shirt in Sebas's #D46F63. console/bart_shirt.c: stage 4's Barney (the
+  bystander at Moe's, kind 8C, colour 9) has his green shirt in pen 4 and its shade in pen 5, pen 4 his shoes'
+  stripes too: his frames are assembled and a cell is the shirt's where most of its two pens' pixels are 16 rows over
+  his feet or more; those cells' two pens recoloured in his colour, the green's fades to the salmon's (26, 14, 12:
+  214, 115, 99) and the shade's to a salmon as much darker. Bart's shirt's setting (bart_shirt=orange) and its check's
+  switch hold it too; the kinds' lists walked once for both (walk_kind). The video as it was.
+  - Checked: stage 4's frames with the colours on and off differ in the two shirts alone (Bart's light blue and its
+    shade; Barney's 00845A and 005239 to D67363 and 844A42), 5573 pixels in 59 frames; stage 1's as before (2979, Bart's
+    alone); Barney seen 6 times his size: the shirt salmon, its folds darker, the hair yellow, the shoes' stripes green.
+- **15-11-2026, INTRO** (the players' issue 8, "Intro Movie watchable within The Simpsons Console Version"; Sebas:
+  "Solo INTRO en el menú", then "si esta inactivo, que meta una intro"): the menu's INTRO line (between MULTIPLAYER and
+  OPTIONS; the menu's lines from row 90, 11 apart, so that six and the copyright and the signature fit the TV's
+  screen) plays the story before stage 1, Smithers taking the diamond and Maggie with it, and the menu comes back at
+  INTRO; the menu left alone 30 seconds (IDLE_FRAMES, nothing pressed) plays it too, as an arcade's attract mode
+  does. modes.c's MODE_INTRO: a game started as ARCADE's, its choice made at once (the player's Marge: characters.c,
+  as RESTART's), the start and the choice under black and silence (modes_covering, its frames hurried) till the story
+  shows; as the story ends (stage 1 next), START or the attack skip its scenes to it, or BACK leaves it, the game
+  ends (console_end_game). A start that never comes back to the menu with INTRO's black off.
+  - Checked with the console's headless and --actions: INTRO picked (the choice at frame 940 under black, the story
+    from 1100, the menu at 2300; left alone, it plays again at 3700), BACK in the story (the menu the next frames),
+    START in it (the menu at 1650), and the menu left alone from power-on (the story at 2500). The story's frames with
+    the shirt on and off differ in Bart's shirt alone; the diamond in Maggie's mouth is the cabinet's darker blue in
+    both. The menu's six lines, the copyright and the signature drawn inside the TV's screen.
+- **15-11-2026, WIDE, stage 3's elevator** (the players' issue 5, SteamOS: "wide is inconsistent: some scenes have,
+  some don't"; Sebas: "vamos con el 5, que es la escena del ascensor", "no hay que extender los limites del nivel para
+  que los jugadores no se salgan", then "dejemos con esos bordes negros, pero bien centrado"): the elevator kept the
+  sides its standing's play had at the map's left end, 16 at the left and the rest at the right (the board's part 16
+  pixels left of the middle in 16:10, 32 in 16:9, 72 in 20:9), and its standing was a play, with the wider screen's
+  limits.
+  - The fix (wide.c): elevator(), step 7 from the platform's standing till cemetery_scroll_update's step 5 (the play
+    at the shaft's top), is a picture, centred as the others, its sides black, the platform's limits the cabinet's;
+    its layers that do not scroll up draw their sides under the black, as the play did (draw_side_columns), for the
+    play after it (else layer B's columns under the cabinet's right black edge stay the step before's: --wide-check,
+    20:9, at the shaft's top). The play after it holds the picture centred while the map has no room at the left
+    (black past its end, as the elevator's sides; the objects' left side the map's: held_left, play_sides_now), then
+    goes on from there: no jump as the elevator begins or ends. Stage 8's start, a play drawn as a picture too, as it
+    was (the picture where the play had it).
+  - Tried and left off (CLIMB_SIDES 0, wide.c's climb_fill; Sebas: "no me gusta", "deja ese arreglo comentado porque
+    tendriamos que hacer unos sprites para eso"): the sides of the shaft's own cells, as segasonic-port's sides (each
+    row's repeat that holds where it meets the side; no mirror: the K052109's tiles do not flip across here), in layer
+    A's cells and put back each frame. The bricks and the beams went on, but the stairs as rows of blocks and a
+    landing's floor as a slab down the side: to do with tiles of their own.
+  - Checked (the headless, stage3's script): sides 32/32, 48/48 and 88/88 from the step's change (14045, 14893, 14525)
+    through the elevator into the play at the top, which pans once the camera has brought the map (16:10 from 17555,
+    16:9 from 18347, 20:9 from 17883); `--wide-check` no side column but the map's in the three; the eight stages'
+    scripts in 16:9 with the same sides frame by frame as before but stage 3's (stage7's script's 128 reports at stage
+    8's end as before); 4:3 (WIDE OFF) the same state and video hashes as before (stages 3 and 8); The Simpsons
+    Arcade's 25 scenarios identical (state, video, sound); both CLIMB_SIDES builds with no warnings (MSVC, GCC
+    -Wall -Wextra); the executables with nothing of the ROM set.
+- **15-11-2026, WIDE, stage 2's Otto** (the players' issue 16: "In stage 2 in 20:9, Otto doesn't appear at his stall
+  until the player, drops down from their balloon at the start of the level"; Sebas: "Yes, #16"): a stage's start
+  reads its spawn list once (start_stage_objects), and the game's play frames (stage_play_frame, which runs
+  spawn_stage_objects) come only after its opening (stage 2's: the family coming down in their balloon). WIDE puts a
+  spawn in as far past the wider screen's right side as past the board's, but in the play's first frame only the
+  board's (spawn_as_play_begins): Otto (type F8, at x 01EC, past the cabinet's 017F, in 20:9's right side of 176 at
+  the stage's start and at 16:9's edge) came in the first play frame after the balloon (stage2's script, 2865 in
+  20:9), his stall empty through the opening. So did stage 1's restaurant door with its OPEN sign (type 08).
+  - Tried first: in the play's first frame, the wider screen's whole due list. Otto came, but the two goons due with
+    him (34, 0C) took objects 19 and 21, and the balloon, put in by the opening the frame after, lost two of its six
+    objects: it was gone.
+  - The fix (wide.c): put_in_sighted_spawns: in the play's first frame, after the board's spawns, those due in the
+    wider screen's right side that stand in its sight (not those that come in by themselves, comes_in_type, nor those
+    from the left) are put in ahead of the list (early_spawns, 8 at most, in the state, forgotten at a step's change);
+    the list skips them as it comes to them (put_in_early; in WIDE also one that took itself off, stage 2's E9, gone
+    in its first frame). The loop's body is put_in_spawn; with WIDE turned off meanwhile and some put in ahead, the
+    console's loop puts in as the board does (x less 0160 for those from the left, no move for those that come in by
+    themselves: the local worker's diff of the two, checked by hand), skipping those still there and putting in again
+    those the game took off past the board's screen (their objects in early_objects).
+  - Put in ahead at the stages' starts: stage 1 the restaurant's door (08; in 20:9 the video arcade's 2A and 11 too),
+    stage 2 E9 and Otto (16:9, 20:9), stage 6's four donuts (FD, 20:9; not drawn till they fly), stage 7 FC (in 20:9
+    also a 0F, which waits in sight and walks in as the play begins; with it the enemy limit holds two goons back
+    there, waiting out of sight anyway); stages 3, 4, 5 and 8 none.
+  - Checked (the console's headless, the eight stages' scripts in 16:10, 16:9 and 20:9 against the build before it):
+    Otto at his stall from the play's first frame, the balloon whole (objects 18-20 and 30-32), the goons in objects
+    19 and 21 at 2865 and every frame after the same; stage 1's opening with its three objects (00/CA, 00/C9) in
+    other objects and its phases the same; no opening's object lost; --wide-check's columns as before; 4:3 the same
+    state and video hashes as before (stages 1, 2 and 7); The Simpsons Arcade's 25 scenarios identical; no warnings
+    (MSVC, GCC -Wall -Wextra). WIDE turned off with Otto put in ahead (the window build, stage 2 in 20:9 saved at its
+    2800 and loaded with WIDE OFF, the players kept up by pokes): Otto taken off at 2924 as the play began, past the
+    board's screen, and put in again at 018E as the camera came to 005E (3668); never two.
