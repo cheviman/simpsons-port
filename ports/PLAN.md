@@ -683,3 +683,41 @@ day: What was done, 15-11-2026).
   - **Barney's colours** (Sebas: "hay que arreglar tmb el tema de los colores de barney, que estan los de season1"):
     his hair in brown tried and left yellow ("dejá el pelo amarillo y cambiale el color de la remera y listo"), his
     shirt in #D46F63: console/PLAN.md's What was done.
+- **19-11-2026, the players' issues 18 and 21** (Sebas: "vamos con tanda de errores, revisate el 21, 18, 16"; 16,
+  Otto at his stall, was in testing already: seen again in this build, stage 2 from the Konami code's page in 20:9,
+  Otto there through the opening's frames 2600 to 2820, the play from 2876).
+  - **18, BOSS RUSH's card not shown** ("it freezes when you select a character then it skips straight to the
+    boss"): the crossing's frames are hurried (console_hurried: not waited for, one picture in 16 shown, the card on
+    black over them), and with VSYNC present() leaves out a picture behind the pace (frame_behind: past next_frame
+    plus a frame's time); next_frame moves in wait_for_frame alone, which hurried frames do not call, so every hurried
+    picture after the first frame's time was behind. Measured (Windows, Direct3D 11, VSYNC ON, stage 1's crossing,
+    frames 1056 to 2704): 104 hurried pictures, 1 shown; here that one was the card, so it looked right; on a slower
+    machine none, the character choice left on the screen till the boss. In the game since 1.0.0.
+    The fix (on_frame_done): a hurried frame sets next_frame to now before its picture (no pace to be behind; the
+    pace goes on from the last one). After: 104 of 104 shown; the story skipped whole's 19 of 19 (console/PLAN.md).
+  - **21, the Switch's speed and sound** ("unstable FPS that bounces around between the high 30's and low 50's.
+    Animation speed matches the frame rate, and the audio suffers"): measured here (Ryzen 9 5900XT, --fast, SDL's
+    dummy video, stage 1's play, 4000 frames) a frame drawn takes 2.8 ms in 4:3 and 3.4 ms in WIDE 16:9, the
+    Switch's; one not drawn (BOSS RUSH's crossing, 1800 frames) 1.0 ms. A core of the Switch's, some 6 to 8 times
+    slower: 20 to 27 ms a frame drawn against the board's 16.9, the player's 37 to 50 a second. A frame longer than
+    its time made the game late, and past four frames the pace started again from there (wait_for_frame): the game
+    and its sound as slow as the pictures, the sound's queue empty at every frame.
+    The fix (main.c, both games): a frame that ends behind its time, by half a frame's time or by a whole one with
+    VSYNC, leaves the next one undrawn (late_skip, game_set_draw: the board's state the same either way), three in a
+    row at most; the game and its sound keep the board's pace with fewer pictures. With VSYNC a machine that slow
+    showed no picture at all, every one behind: never two left out in a row now (left_out), and none while frames go
+    undrawn within 30 frames of one another, for 120 frames (late_pace: each frame drawn is shown).
+  - **--slow MS and --no-vsync** (both games, for checks: a slow device's frames on a computer): each frame drawn
+    takes MS milliseconds more, and every 600 frames the standard error says the frames a second, how many were drawn
+    and shown and how often the sound's queue was empty; VSYNC off whatever the settings say, as the devices' builds.
+  - Checked (Windows, a window, stage 1's play, frames 1800 to 3000). --slow 20 --no-vsync, the device's case, before:
+    37 frames a second, 600 of 600 drawn and shown, the sound out 600 times in 600 frames; after: 59.1 to 59.3 (the
+    board's 59.19), 394 to 396 drawn and shown, the sound out 0 times. --slow 20 with VSYNC, before: 38.8 a second, 0
+    shown of 600 drawn, the sound out 600 times; after: 59.1 to 59.2, 402 drawn and shown, 0 times. --slow 40: 220
+    drawn and shown, 59.0 to 59.3; --slow 12: 600 drawn, 563 to 570 shown; --slow 1: 600 drawn and shown, 59.19, as
+    without it. The Simpsons Arcade Game, --slow 20 --no-vsync: 59.2, 399 of 600 drawn. The Switch's two games built
+    (devkitPro), no warnings (MSVC; GCC -Wall -Wextra on the changed files); the 25 scenarios identical in state,
+    picture and sound.
+  - Not tried on a Switch. Not done: the drawing's own speed (70 % of a frame; the runtime's, in the
+    decompilation's repository), the Switch's CPU boost, and the player's other request, custom button mapping on the
+    Switch (OPTIONS has no CONTROLS on the devices).

@@ -10,11 +10,13 @@
  *    license:BSD-3-Clause
  *    Usage: "The Simpsons Arcade Game" [--game ROMSET] [--prepare] [--script FILE [--fast]] [--hashes FILE]
  *                                 [--video-hashes FILE] [--sound-hashes FILE] [--service] [--assets FOLDER|PACK]
- *                                 [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]
+ *                                 [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE] [--slow MS]
+ *                                 [--no-vsync]
  *           "The Simpsons Mr. Plow Edition" [--game ROMSET] [--prepare] [--assets FOLDER|PACK] [--script FILE] [--fast]
  *                          [--actions FILE]
  *                          [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start]
  *                          [--stereo] [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]]
+ *                          [--slow MS] [--no-vsync]
  *
  *    The Simpsons Arcade Game, the arcade game as it is (runtime/src/game.c and the program): this file only wraps it.
  *    When each frame is done (game_frame_done) the port reads the keyboard and the game controllers into the board's
@@ -77,7 +79,11 @@
  *    background pauses a game and draws nothing there. The home gesture leaves it (SIMPSONS_SYSTEM_EXIT).
  *
  *    --script plays a control script (runtime/include/simpsons/script.h) instead of the keyboard, to its end;
- *    --fast runs without waiting for the frames' time. --hashes, --video-hashes and --sound-hashes write for each
+ *    --fast runs without waiting for the frames' time. --slow MS makes each frame drawn take MS milliseconds more,
+ *    as a slow device's, and says on the standard error every 600 frames how the pace held: the frames a second (the
+ *    board's 59.19), how many were drawn and shown, and how often the sound ran out; --no-vsync runs it without
+ *    VSYNC, as the devices' builds do (their screens keep the system's refresh), so that the two together are a slow
+ *    device's frames on a computer. --hashes, --video-hashes and --sound-hashes write for each
  *    frame the hashes kref writes, so a run in the window compares with the reference frame by frame. --service holds
  *    the test switch all along (from the start: the board then resets its EEPROM). --video-dump writes the frames
  *    FRAME ... as the window shows them (the console's picture over them) into DIR, frame_FRAME.bmp. In the console
@@ -204,10 +210,12 @@
 #ifdef SIMPSONS_CONSOLE
 #define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--assets FOLDER|PACK] [--script FILE] [--fast] [--actions FILE]" \
 	" [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start] [--stereo]" \
-	" [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]] [--lan-name NAME] [--lan-hashes FILE]"
+	" [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]] [--lan-name NAME] [--lan-hashes FILE]" \
+	" [--slow MS] [--no-vsync]"
 #else
 #define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE]" \
-	" [--sound-hashes FILE] [--service] [--assets FOLDER|PACK] [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]"
+	" [--sound-hashes FILE] [--service] [--assets FOLDER|PACK] [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]" \
+	" [--slow MS] [--no-vsync]"
 #endif
 
 static SDL_Window *window;
@@ -220,6 +228,20 @@ static int arcade_pixels;             /* F3: the kind of pixels shown (the conso
 #endif
 static uint64_t next_frame;           /* performance counter value the next frame waits for */
 static bool vsync_on;                 /* the renderer shows each frame at the screen's refresh (apply_vsync) */
+static bool late_skip;                /* the next frame is not drawn: the last one ended behind its time
+                                         (wait_for_frame) */
+static int late_skips;                /* the frames in a row not drawn so */
+static int late_pace;                 /* the frames left of a slow machine's pace, each frame drawn shown */
+static int late_since = 1000;         /* the frames since one was last not drawn so */
+static bool left_out;                 /* the last picture was not shown, behind its time (present) */
+static bool no_vsync;                 /* --no-vsync: VSYNC off whatever the settings say (a check's: a device's) */
+static int slow_ms;                   /* --slow MS: each frame drawn takes MS milliseconds more (a check's: a slow
+                                         device's), and slow_frame says how the pace held */
+static struct
+{
+	uint64_t since;                   /* (the performance counter as the count began) */
+	unsigned frames, drawn, shown, sound_empty;
+} slow;
 static simpsons_script *script;
 static uint64_t script_frames;
 static bool fast;
@@ -539,10 +561,12 @@ static void draw_controls(console_picture *into)
 
 /* A frame a whole frame's time behind the game's pace (a screen a little slower than the board's 59.19 a second, or
    the machine busy) is not shown, so that it does not wait for the screen's refresh: the game, and its sound, keep
-   their pace, a frame left out now and then (as tmnt-port's and outrunners-port's) */
+   their pace, a frame left out now and then (as tmnt-port's and outrunners-port's). Never two in a row, and none
+   while frames go undrawn to keep the pace (late_pace, wait_for_frame): on a machine that draws no frame in its time
+   every one was behind, and the picture stood still; there each frame drawn is shown, and fewer are drawn */
 static bool frame_behind(void)
 {
-	return vsync_on && SDL_GetPerformanceCounter()
+	return vsync_on && !left_out && late_pace == 0 && SDL_GetPerformanceCounter()
 		> next_frame + SDL_GetPerformanceFrequency() * FRAME_RATE_DENOMINATOR / FRAME_RATE_NUMERATOR;
 }
 
@@ -842,8 +866,12 @@ static void present(void)
 #ifdef SIMPSONS_TOUCH_CHECK
 	check_screen_dump();
 #endif
-	if (!frame_behind())
+	left_out = frame_behind();
+	if (!left_out)
+	{
 		SDL_RenderPresent(renderer);
+		slow.shown++;
+	}
 }
 
 #ifdef SIMPSONS_CONSOLE
@@ -957,6 +985,8 @@ static void queue_sound(void)
 
 	if (!audio || !count || fast)
 		return;
+	if (SDL_GetQueuedAudioSize(audio) == 0)
+		slow.sound_empty++;    /* (the sound ran out: a gap heard; --slow's report) */
 	if (SDL_GetQueuedAudioSize(audio) > QUEUE_FRAMES_MAX * bytes)
 		return;
 #ifdef SIMPSONS_CONSOLE
@@ -2085,9 +2115,9 @@ static void apply_vsync(void)
 {
 #ifndef SIMPSONS_HANDHELD
 #ifdef SIMPSONS_CONSOLE
-	const bool wanted = console_settings.vsync && !fast;
+	const bool wanted = console_settings.vsync && !fast && !no_vsync;
 #else
-	const bool wanted = !fast;
+	const bool wanted = !fast && !no_vsync;
 #endif
 
 	if (renderer && wanted != vsync_on)
@@ -2138,7 +2168,19 @@ static void apply_settings(void)
 /* ---- the frames ---- */
 
 /* The frame's time: the board's 59.185 frames a second from the last one, slept for but its last millisecond (a
-   frame shown with VSYNC has waited for the screen's refresh already, frame_behind) */
+   frame shown with VSYNC has waited for the screen's refresh already, frame_behind).
+   A frame that ends behind its time leaves the next one undrawn (late_skip: on_frame_done, game_set_draw; the board's
+   state is the same either way), LATE_SKIPS_MOST in a row at most: a device that takes longer than a frame's time to
+   draw one (the Switch, the players' issue 21: 37 to 50 pictures a second, the game and its sound as slow and the
+   sound breaking up) keeps the game's pace and its sound, with fewer pictures; a frame not drawn costs a third of
+   one drawn. Behind by half a frame's time, or by a whole one with VSYNC, whose wait for the screen's refresh is in
+   it (that frame would not be shown anyway, frame_behind). Where frames go undrawn one soon after another, within
+   LATE_PACE_NEAR frames, the machine is slow: for LATE_PACE_FRAMES the frames drawn are all shown (late_pace); one
+   alone, a busy moment's or a slower screen's every second or so, changes nothing else */
+#define LATE_SKIPS_MOST     3
+#define LATE_PACE_NEAR      30
+#define LATE_PACE_FRAMES    120
+
 static void wait_for_frame(void)
 {
 	const uint64_t frequency = SDL_GetPerformanceFrequency();
@@ -2148,6 +2190,19 @@ static void wait_for_frame(void)
 	if (next_frame == 0 || now > next_frame + 4 * period)
 		next_frame = now;    /* (behind by more than a few frames: the pace starts again from here) */
 	next_frame += period;
+	late_skip = now > next_frame + (vsync_on ? period : period / 2) && late_skips < LATE_SKIPS_MOST;
+	late_skips = late_skip ? late_skips + 1 : 0;
+	if (late_skip)
+	{
+		if (late_since < LATE_PACE_NEAR)
+			late_pace = LATE_PACE_FRAMES;
+		late_since = 0;
+	}
+	else
+	{
+		late_since += late_since < LATE_PACE_FRAMES ? 1 : 0;
+		late_pace -= late_pace > 0 ? 1 : 0;
+	}
 	while ((now = SDL_GetPerformanceCounter()) < next_frame)
 	{
 		const uint64_t left_ms = (next_frame - now) * 1000 / frequency;
@@ -2243,6 +2298,31 @@ static bool dumped(uint64_t number)
 	return false;
 }
 
+/* --slow: the frame drawn takes its milliseconds more, and every SLOW_REPORT_FRAMES frames how the pace held */
+#define SLOW_REPORT_FRAMES  600
+
+static void slow_frame(bool drawn, uint64_t number)
+{
+	uint64_t now;
+
+	if (drawn)
+	{
+		SDL_Delay((Uint32)slow_ms);
+		slow.drawn++;
+	}
+	if (slow.since == 0)
+		slow.since = SDL_GetPerformanceCounter();
+	if (++slow.frames < SLOW_REPORT_FRAMES)
+		return;
+	now = SDL_GetPerformanceCounter();
+	fprintf(stderr, "Slow %d ms, to frame %" PRIu64 ": %.2f frames a second (the board's %.2f), %u of %u drawn, %u shown,"
+		" the sound out %u times\n", slow_ms, number,
+		slow.frames * (double)SDL_GetPerformanceFrequency() / (double)(now - slow.since),
+		(double)FRAME_RATE_NUMERATOR / FRAME_RATE_DENOMINATOR, slow.drawn, slow.frames, slow.shown, slow.sound_empty);
+	slow.since = now;
+	slow.frames = slow.drawn = slow.shown = slow.sound_empty = 0;
+}
+
 #define HURRIED_SHOWN       16    /* (the console's hurried frames: one drawn and shown in these, the window kept
                                      alive) */
 static bool frame_drawn = true;    /* (whether the frame done was drawn: game_set_draw) */
@@ -2256,6 +2336,8 @@ static void on_frame_done(void)
 	const bool hurried = false;
 #endif
 
+	if (slow_ms > 0)
+		slow_frame(frame_drawn, number);
 	read_events();
 #ifdef SIMPSONS_CONSOLE
 	if (lan_given && lan_hashes)
@@ -2299,6 +2381,10 @@ static void on_frame_done(void)
 	if (sound_hashes)
 		fprintf(sound_hashes, "%" PRIu64 " %016" PRIx64 " %016" PRIx64 "\n", number, game_sound_samples_hash(),
 			game_sound_state_hash());
+	if (hurried)
+		next_frame = SDL_GetPerformanceCounter();    /* (no pace to be behind: with VSYNC a hurried picture, BOSS RUSH's
+		                                                card, was left out as late, frame_behind, all but the first if
+		                                                that: the players' issue 18; the pace goes on from the last) */
 	if (frame_drawn && (!hurried || number % HURRIED_SHOWN == 0 || dumped(number)))
 		show_frame();
 	dump_frame(number);
@@ -2328,15 +2414,16 @@ static void on_frame_done(void)
 #else
 	save_eeprom();
 #endif
-#ifdef SIMPSONS_CONSOLE
-	/* (the next frame drawn but in a hurry: then one in HURRIED_SHOWN, those dumped, every one for --video-hashes) */
-	frame_drawn = !hurried || (number + 1) % HURRIED_SHOWN == 0 || dumped(number + 1) || video_hashes;
-	game_set_draw(frame_drawn);
-#endif
+	late_skip = false;
 	if (script && script_frames && number >= script_frames)
 		quit();
 	else if (!fast && !hurried)
 		wait_for_frame();
+	/* (the next frame drawn but in a hurry: then one in HURRIED_SHOWN; or behind the pace, late_skip: not then; those
+	   dumped and, for --video-hashes, every one always) */
+	frame_drawn = (!hurried || (number + 1) % HURRIED_SHOWN == 0) && !late_skip;
+	game_set_draw(frame_drawn || dumped(number + 1) || video_hashes);
+	frame_drawn = frame_drawn || dumped(number + 1);
 }
 
 /* ---- the start ---- */
@@ -3012,6 +3099,10 @@ int main(int argc, char **argv)
 			sound_hashes = open_output(argv[++index]);
 		else if (strcmp(argv[index], "--service") == 0)
 			service = true;
+		else if (strcmp(argv[index], "--slow") == 0 && index + 1 < argc)
+			slow_ms = atoi(argv[++index]);
+		else if (strcmp(argv[index], "--no-vsync") == 0)
+			no_vsync = true;
 		else if (strcmp(argv[index], "--assets") == 0 && index + 1 < argc)
 			assets = argv[++index];
 		else if (strcmp(argv[index], "--video-dir") == 0 && index + 1 < argc)

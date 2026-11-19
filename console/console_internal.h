@@ -166,6 +166,12 @@ void console_scores_lan(bool playing);
 /* Whether the game shows a scene a button skips (check_skip's: a story, a title card, a stage's or a bonus game's
    end, the ending): no pause there, a START skips it */
 bool console_in_scene(void);
+/* Whether a story is being skipped whole, a player's button having skipped a part of it: black and silence over it,
+   its frames hurried, till its step ends */
+bool console_scene_skipping(void);
+/* Whether its black and silence are kept: while it is skipped and the few frames after, its last picture's and its
+   tune's */
+bool console_scene_quiet(void);
 
 /* Whether the console runs the arcade's own attract mode and controls (--arcade-start, console_arcade_test): the
    game's functions in the console's versions then do what the arcade's do, but WIDE's */

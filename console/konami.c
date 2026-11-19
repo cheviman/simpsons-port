@@ -144,13 +144,13 @@ void konami_game_frame(void)
 
 int console_volume(void)
 {
-	return konami_covering() || modes_covering() ? 0 : console_settings.volume;    /* (no sound under the black: a
-		stage's start, BOSS RUSH's crossing) */
+	return konami_covering() || modes_covering() || console_scene_quiet() ? 0 : console_settings.volume;    /* (no
+		sound under the black: a stage's start, BOSS RUSH's crossing, a story skipped whole) */
 }
 
 bool console_hurried(void)
 {
-	return konami_covering() || modes_covering();
+	return konami_covering() || modes_covering() || console_scene_skipping();
 }
 
 uint8_t konami_presses(int slot)

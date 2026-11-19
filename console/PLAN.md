@@ -660,3 +660,28 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     (MSVC, GCC -Wall -Wextra). WIDE turned off with Otto put in ahead (the window build, stage 2 in 20:9 saved at its
     2800 and loaded with WIDE OFF, the players kept up by pokes): Otto taken off at 2924 as the play began, past the
     board's screen, and put in again at 018E as the camera came to 005E (3668); never two.
+- **19-11-2026, the story before stage 1 skipped whole** (Sebas: "otro error heavy que encontre, cuando entras al
+  principio del juego, te deja adelantar la cinematica pero el audio sigue corriendo normal y hasta que no se termine
+  no te avanza"): the cabinet's own. Story 1 (game_step 1) is four parts, each with its check_skip (story_1_street,
+  story_1_redraw, story_1_rise, story_1_end): a button ends that part alone, after the part's wait of 40 frames, and
+  the story's sounds go on. Measured (ARCADE, Marge alone, the story from frame 989): untouched it ends at 1883 (894
+  frames, 15 s); one START at 1100, at 1819 (64 frames less); a START every 10 frames, at 1272 at the earliest. The
+  other scenes a button skips have one check_skip and end whole (stage 2's and 5's ends, stage 6's wake, stage 7's
+  end, stage 8's start, the bonus games' instructions, the title cards, the ending); steps 5, 10 and 14, "the
+  stories" 2 to 4, last a frame (story_steps.c: theirs play in the next stage's opening).
+  - The change (console.c, konami.c): the first skip takes the story with it (scene_skipped): a START of a player
+    in the game at once, the attack or the jump as the cabinet takes them (after the part's wait: the presses that
+    chose the character skip nothing). Till the step ends the playing slots' attack is pressed 2 frames in 8, their
+    own controls off the board, under black, at volume 0 and with the frames hurried (console_scene_skipping in
+    console_hurried), as the Konami code's story before its stage. The black and the silence 3 frames more
+    (scene_quiet, console_scene_quiet in console_overlay and console_volume): the frame the step changes at still
+    has the story's last picture (Maggie with the diamond, seen a frame before this), and the story's tune sounds
+    on till the title card's first sound command takes its place.
+  - Not INTRO's story (its scenes one by one: it is there to be seen), nor a LAN game's (its frames' pace is the
+    network's): the cabinet's there.
+  - Checked (scripted; SDL's dummy video, and a window with VSYNC): one START at 1000, inside the first part's wait:
+    stage 1's step at 1273; at 1100: 1321; at 1300: 1377. The attack (--script) at 1040 nothing, as on the cabinet,
+    at 1100 stage 1 at 1313. Black from the START to 1276, STAGE 1 DOWNTOWN SPRINGFIELD's card from 1277. The sound
+    (the samples' mean size each frame): volume 0 through the story's last three frames, then the card's as an
+    unskipped run's from its first sound. The window's 19 hurried pictures all shown (ports/PLAN.md, issue 18). The
+    25 scenarios identical. Not checked: a controller's START on a device, four players.

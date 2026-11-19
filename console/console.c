@@ -109,6 +109,25 @@ static uint8_t controls_last[CONSOLE_PLAYERS];    /* each player's controls at t
 static uint64_t scene_frame;           /* the board's frame check_skip last ran at, plus one (0: none yet) */
 static uint8_t scene_skips[CONSOLE_PLAYERS];    /* each slot's frames of attack left for a START's skip */
 
+/* The story before stage 1 skipped whole (Sebas: "te deja adelantar la cinematica pero el audio sigue corriendo
+   normal y hasta que no se termine no te avanza"): it is the one scene of several parts, each with its own check_skip
+   (story_1_street, story_1_redraw, story_1_rise, story_1_end), which ends that part alone at a button, after the
+   part's own wait (40 frames), the story's sounds going on; one START took a second off its fifteen. Here the first
+   skip takes the story with it: a START at once, the attack or the jump as the cabinet takes them (after the part's
+   wait: the presses that chose the character skip nothing). Until the story's step ends the playing slots' attack is
+   pressed SCENE_SKIP_PRESSED frames in SCENE_SKIP_EVERY, under black and silence and with the frames hurried
+   (console_volume, console_hurried), as the Konami game's story before its stage (konami.c). The other scenes end
+   whole at their one check_skip (steps 5, 10 and 14, "the stories", last a frame: theirs play in the next stage's
+   opening). Not INTRO's story (its scenes skipped one by one: it is there to be seen), nor a LAN game's (its frames'
+   pace is the network's) */
+#define SCENE_SKIP_EVERY    8
+#define SCENE_SKIP_PRESSED  2
+#define SCENE_QUIET_FRAMES  3          /* the black and the silence kept after it: the story's last picture stays a
+                                          frame, and its tune sounds on until the next step's first sound command
+                                          takes its place, these frames later */
+static uint8_t scene_skipped;          /* the story's step being skipped whole (0: none) */
+static uint8_t scene_quiet;            /* the frames of black and silence left after a story skipped whole */
+
 /* ---- the slots ---- */
 
 /* The slot's record of the players' (player_variable_records, 07E821: four of 27 bytes, the slots' order) */
@@ -147,6 +166,23 @@ bool console_join_going_on(int slot)
 	return slot >= 0 && slot < CONSOLE_PLAYERS && joins[slot].frames > 0;
 }
 
+/* Whether the game shows the story whose skip takes all of it (scene_skipped) */
+static bool story_skipped_whole(void)
+{
+	return console.page == PAGE_GAME && game_mode == GAME_MODE_GAME && mode_phase == PHASE_STEPS
+		&& game_step == STEP_STORY_1 && console.mode != MODE_INTRO && !console_lan_playing();
+}
+
+bool console_scene_skipping(void)
+{
+	return scene_skipped != 0u && game_step == scene_skipped && story_skipped_whole();
+}
+
+bool console_scene_quiet(void)
+{
+	return console_scene_skipping() || scene_quiet > 0u;
+}
+
 /* A START in a game: a player whose character plays (or is coming in) pauses it (the port's); any other chooses his
    character, then comes in on it (characters.c) */
 static void start_pressed(int player)
@@ -157,7 +193,9 @@ static void start_pressed(int player)
 		return;    /* (FRANK GRIMES LIFE: its one player alone) */
 	if (slot >= 0 && (console_slot_plays(slot) || console_slot_joining(slot)))
 	{
-		if (console_slot_plays(slot) && console_in_scene())
+		if (console_slot_plays(slot) && story_skipped_whole())
+			scene_skipped = game_step;    /* (the story before stage 1: all of it) */
+		else if (console_slot_plays(slot) && console_in_scene())
 			scene_skips[slot] = SCENE_SKIP_FRAMES;    /* (a scene: skipped as by his attack, check_skip) */
 		return;
 	}
@@ -233,6 +271,18 @@ void console_controls(const uint8_t pressed[CONSOLE_PLAYERS], uint8_t starts)
 				slots[slot] |= SIMPSONS_ATTACK;
 			scene_skips[slot]--;
 		}
+	if (scene_quiet > 0u)
+		scene_quiet--;
+	if (!console_scene_skipping())
+	{
+		if (scene_skipped != 0u && console.page == PAGE_GAME && game_mode == GAME_MODE_GAME)
+			scene_quiet = SCENE_QUIET_FRAMES;    /* (the story over: its tune's last frames unheard) */
+		scene_skipped = 0u;    /* (or its game over) */
+	}
+	else
+		for (int slot = 0; slot < CONSOLE_PLAYERS; slot++)
+			if (console_slot_plays(slot))    /* (his own controls not on the board: a button held is no new press) */
+				slots[slot] = simpsons_board.frame % SCENE_SKIP_EVERY < SCENE_SKIP_PRESSED ? SIMPSONS_ATTACK : 0u;
 	for (int slot = 0; slot < CONSOLE_PLAYERS; slot++)
 	{
 		const int frame = joins[slot].frames - 1;
@@ -564,6 +614,8 @@ void console_lan_power_on(void)
 		scene_skips[slot] = 0u;
 	}
 	scene_frame = 0u;
+	scene_skipped = 0u;
+	scene_quiet = 0u;
 	arcade_test = false;
 	console_characters_reset();
 	characters_power_on();
@@ -615,6 +667,10 @@ void console_overlay(console_picture *frame)
 	menu_overlay(frame);
 	choice_overlay(frame);
 	character_change_overlay(frame);
+	if (console_scene_quiet())    /* (a story skipped whole: black till its step ends, and over the picture it left
+	                                 until the next step draws its own) */
+		draw_fill(frame, PICTURE_FIRST(frame), 0, PICTURE_END(frame) - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT,
+			0x000000u);
 	konami_overlay(frame);
 	modes_overlay(frame);    /* (BOSS RUSH's crossing: its card on black) */
 	if (console_lan_waiting())
@@ -636,6 +692,8 @@ void check_skip(uint16_t wait, uint16_t *p_presses_addresses, uint32_t *p_skippe
 {
 	scene_frame = simpsons_board.frame + 1u;
 	original_check_skip(wait, p_presses_addresses, p_skipped);
+	if (*p_skipped != 0u && story_skipped_whole())
+		scene_skipped = game_step;    /* (the story's part skipped by a button: the rest of it too) */
 }
 
 bool console_in_scene(void)

@@ -6,6 +6,14 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 
 **To try**
 
+- **Slow devices** (the players' issue 21, the Switch): where a frame takes longer to draw than its time, the game
+  and its sound keep their speed and some pictures are left out, instead of all of it slowing down with the sound
+  breaking up. Not tried on a Switch: tell how it goes there, docked and handheld.
+- **BOSS RUSH's card** (the players' issue 18): BOSS RUSH, the boss's number, his stage and his name show on black
+  while the game goes to each boss; with VSYNC ON the picture stood still on the character choice until the boss.
+- **The story before stage 1** (Sebas): one START skips all of it, straight to stage 1's card, its sound with it
+  (the attack and the jump too, once the story has run a second). It skipped one scene at a time, the sound going
+  on. INTRO on the menu still skips scene by scene.
 - **WIDE, stage 1's opening** (Sebas, on his phone): Smithers' goons running off with Maggie no longer vanish in
   the picture's right side; they run out of the picture, and the scene ends a moment later than in 4:3.
 - **WIDE, stage 1's shops** (Sebas, on his phone): the restaurant's cook stands at its door again, no longer at
