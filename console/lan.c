@@ -284,6 +284,8 @@ static void lan_game_end(const char *problem)
 	settings->demo_sound = lan.own.demo_sound;
 	settings->upside_down = lan.own.upside_down;
 	settings->wide = lan.own.wide;
+	console_settings_into_game();    /* (into the EEPROM and the game's copies, which held the host's: the attract mode's
+	                                    DEMO SOUND until the next game took OPTIONS' again) */
 	settings->changed = true;
 	console_scores_lan(false);
 	if (problem)
