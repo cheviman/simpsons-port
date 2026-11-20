@@ -507,6 +507,59 @@ void game_mode_frame(uint16_t u)
 		same_character_portraits();
 }
 
+/* INTRO > ATTRACT (the players' issue 22, "The attract Movie watchable within the intro option"): the cabinet's own
+   attract mode (original_attract: its opening, the title, the demo, the score ranking, round again) from its opening,
+   as a game's end starts it (end_game: its steps at 0), the menu's objects and its song off; the attract's sound as
+   OPTIONS' DEMO SOUND has it, as on the cabinet. ATTRACT_LEAVE's buttons end it: the screen and the sound cleared, the
+   TV drawn again (tv.c), INTRO's page at ATTRACT */
+#define ATTRACT_LEAVE       (ACTION_BIT(ACTION_ACCEPT) | ACTION_BIT(ACTION_BACK) | ACTION_BIT(ACTION_START))
+#define INTRO_ATTRACT_LINE  1          /* (menu.c's INTRO_ATTRACT) */
+
+void console_attract_watch(void)
+{
+	uint16_t place = 0, sprite_place = 0;
+
+	vector_clear_objects(&place, &sprite_place);
+	clear_sprites();
+	queue_sound_always(SOUND_SILENCE);
+	mode_step = 0u;
+	mode_phase = 0u;
+	game_step = 0u;
+	step_phase = 0u;
+	step_subphase = 0u;
+	step_countdown = 0u;
+	console.page = PAGE_ATTRACT;
+	console.page_frames = 0;
+}
+
+static bool attract_watch_frame(uint16_t u, uint32_t pressed)
+{
+	uint16_t place = 0, sprite_place = 0;
+
+	if (!(pressed & ATTRACT_LEAVE))
+	{
+		console.page_frames++;
+		original_attract(u);
+		return true;
+	}
+	vector_clear_objects(&place, &sprite_place);
+	clear_sprites();
+	clear_tile_layers();
+	io_write8(tile_chip_scroll_control, 0u);
+	queue_sound_always(SOUND_SILENCE);
+	mode_step = 0u;
+	mode_phase = 0u;
+	game_step = 0u;
+	step_phase = 0u;
+	step_subphase = 0u;
+	step_countdown = 0u;
+	tv_forget();
+	console.page = PAGE_INTRO;
+	console.choice = INTRO_ATTRACT_LINE;
+	console.page_frames = 0;
+	return false;
+}
+
 /* The attract mode's frame: the presentation at power-on, then the menus on the TV; ARCADE's coin, and the attract's
    own start of the game once its credit has gone in */
 void attract(uint16_t u)
@@ -545,7 +598,7 @@ void attract(uint16_t u)
 		if (console_lan_back_to_page())
 			console.page = PAGE_LAN;    /* (a LAN game over, left, or its host gone: MULTIPLAYER again) */
 		else if (!restarting && mode == MODE_INTRO)
-			console.choice = menu_intro_line();    /* (INTRO's end: the menu at its line) */
+			menu_after_intro();    /* (INTRO's end: its page at STORY, or the menu at its line) */
 		else if (!restarting && mode != MODE_NONE)
 		{
 			console.page = PAGE_MR_PLOW;    /* (a mode's game over: MR. PLOW MODE's page at its line, its lines in */
@@ -576,6 +629,13 @@ void attract(uint16_t u)
 		console.choice = 0;
 		console.page_frames = 0;
 		pressed = 0;
+		memset(player_pressed, 0, sizeof(player_pressed));
+	}
+	if (console.page == PAGE_ATTRACT)
+	{
+		if (attract_watch_frame(u, pressed))
+			return;
+		pressed = 0;    /* (the button that ended it picks nothing on INTRO's page) */
 		memset(player_pressed, 0, sizeof(player_pressed));
 	}
 	menu_frame(pressed, player_pressed);
@@ -747,7 +807,7 @@ void console_restart_game(void)
 void console_describe(char *text, size_t size)
 {
 	static const char *const pages[] = { "presentation", "menu", "mr. plow mode", "options", "video", "controls",
-		"starting", "choice", "game", "lan", "lan name", "lan rooms", "lan room", "konami" };
+		"starting", "choice", "game", "lan", "lan name", "lan rooms", "lan room", "konami", "intro", "attract" };
 	char konami[160] = "";
 	const uint8_t *eeprom = simpsons_board.eeprom.data;
 

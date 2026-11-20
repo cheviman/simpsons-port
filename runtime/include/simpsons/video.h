@@ -70,7 +70,8 @@ void simpsons_video_set_fixed(int dx, int first, int last);
 
    Some pens of some sprite cells and of some layer tiles drawn in other colours than the palette RAM gives them, and some
    pixels of some sprite cells in a shade of them, the RAM and every other pixel as the board has them. The colours are
-   the caller's functions of a palette colour (xBGR 555 to xBGR 555; a shaded pen takes the colour shaded). The tables
+   the caller's functions of a palette colour (xBGR 555 to xBGR 555; a shaded pen takes the colour shaded), and of it
+   alone: the video asks them for a colour once and keeps the answer until the recolouring is set again. The tables
    are the caller's and stay as it leaves them; NULL turns it off. From the next frame drawn on */
 #define SIMPSONS_VIDEO_SPRITE_CELLS 0x8000    /* (the sprite ROM's 16 x 16 cells) */
 

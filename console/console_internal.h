@@ -45,8 +45,10 @@ enum
 	PAGE_LAN_NAME,         /* its NAME, */
 	PAGE_LAN_ROOMS,        /* JOIN's rooms found, */
 	PAGE_LAN_ROOM,         /* and the room's devices */
-	PAGE_KONAMI            /* the Konami code's page, from the menu: its stage, lives, health and characters
+	PAGE_KONAMI,           /* the Konami code's page, from the menu: its stage, lives, health and characters
 	                          (konami.c) */
+	PAGE_INTRO,            /* INTRO: STORY, ATTRACT, BACK */
+	PAGE_ATTRACT           /* INTRO > ATTRACT: the cabinet's own attract mode, no menu over it (console.c) */
 };
 
 /* The lives a credit gives and the continues after the first credit in a game of the console's own modes (TMNT's
@@ -238,8 +240,12 @@ void frank_grimes_start(int player);
 void intro_start(int player);
 /* Whether the character choice is made at once, with no one choosing (INTRO's) */
 bool modes_choice_made(void);
-/* The menu's INTRO line (menu.c): where the menu comes back to after it */
-int menu_intro_line(void);
+/* INTRO's story over (menu.c): INTRO's page at STORY when it was picked there, else the menu at its INTRO line (the
+   menu left alone) */
+void menu_after_intro(void);
+/* INTRO > ATTRACT (console.c): the cabinet's attract mode from its opening, as after a game, with no menu over it,
+   till a button brings INTRO's page back at ATTRACT */
+void console_attract_watch(void);
 /* The per-game state as a mode's game starts (console_start_game; RESTART's too) */
 void modes_game_starting(void);
 /* Whether the Konami code's page's rules (its lives, health and characters) hold in the game: a mode's, the code

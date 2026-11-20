@@ -685,3 +685,49 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     (the samples' mean size each frame): volume 0 through the story's last three frames, then the card's as an
     unskipped run's from its first sound. The window's 19 hurried pictures all shown (ports/PLAN.md, issue 18). The
     25 scenarios identical. Not checked: a controller's START on a device, four players.
+- **20-11-2026, WIDE at stage 2's end and at stages 3's and 5's starts** (Sebas, from a player's video of
+  1.0.1-TEST13: "te paso capturas de escenas que el 16:9 se rompió. aca cuando le ganas al globo de krusty", "cuando
+  cae homero que es cinematica la pondria 4:3", "los secuaces esperan en altura de 4:3", "en el nivel del bosque
+  tambien"; the elevator's players' boxes in the same video were issue 5's, already right in testing):
+  - **The hole after the Krusty balloon** (stage_2_after_boss: map area 1 on layer B, drawn at the boss's place, map
+    pixels 680-85F): its strips' table is the same strip 8 times (7D7E, the void) and its wall (7DFE); map_of cut a
+    table at its first repeat, took the hole for a 256-pixel map, drew it whole round the ring (draw_whole_ring), and
+    the sides showed pieces of its wall again. A repeat is the same strip now: the hole a map of 2304 pixels, its sides
+    the void's. (The left side's black with a light blue edge above the floor is the funhouse's Krusty face in the
+    night's colours: the stage's map, the cabinet's as its camera passes it, 12044.)
+  - **Stage 2's closing story** (stage_2_end_phase, step_phase 7: the fall off the cliff, area 2, a map of 512 pixels,
+    and Homer's down the gorge, area 3, scrolling up): no longer the play, which kept the boss's sides (112 and -16 in
+    16:9) and showed the maps round the ring past them: a picture, centred, its sides black (black_drawn), from the
+    black frame its first is.
+  - **A stage's title card** (step_phase 1, stage_title_card; step 7 has none): stage 3's and stage 5's are drawn from
+    their stage's own scene (86 area 1, 89 area 4), not scene 02, and counted as the play: their sides the card's maps'
+    (96 and 0 in 16:9), so the play began panning from them, and the forest's goons put in at its first frame past the
+    cabinet's right edge (type EB at 0188) were taken as out of WIDE's sight (its right side 4 then) and stood in it
+    as it opened (0 and 96). A ring drawn whole in a card's phase is the card's (ring card) till the stage draws its
+    play; the play comes with its sides at once, its goons past the wider screen's edge.
+  - Checked (the headless's --wide-hashes, each frame's WIDE picture, before and after, the eight stages' and the two
+    bonus games' scripts, 16:9): stages 1, 4 (but stage 5's card at its end), 6, 7, 8 and the bonus games the same in
+    every frame; stage 2 from the floor's break to the cards, and stages 3 and 5 from their cards on (their goons
+    elsewhere: the play after them is another). --wide-check in 16:9: nothing put in in the sides' sight at stages 3's
+    and 5's starts (16318's goon before); 20:9 as before (stage 1's at 1702 and 1917, at the edge). The frames seen in
+    16:9 and 20:9 (build/krusty_work). WIDE OFF: stages 2, 3 and 5 the same state, video and sound hashes. Not
+    checked on a device.
+- **20-11-2026, INTRO > ATTRACT** (the players' issue 22, "Request: The attract Movie watchable within the intro
+  option": the attract mode starts in the arcade game, not in the console's; Sebas: "y dps agregemos el 22", the way
+  chosen here as he did not pick one: INTRO's page with STORY and ATTRACT): the menu's INTRO opens INTRO's page
+  (menu.c: STORY, ATTRACT, BACK, with two lines under them saying what the chosen one is, as MR. PLOW MODE's). STORY
+  is INTRO as before (modes.c), and its end comes back to the page at STORY (menu_after_intro; the menu left alone
+  still plays it and comes back to the menu at INTRO). ATTRACT (console.c, console_attract_watch and
+  attract_watch_frame): the cabinet's own attract mode, original_attract, which the console's attract never runs
+  (its menus over the TV instead), from its opening as a game's end starts it (end_game: mode_step and the step's
+  variables at 0), the menu's objects, sprites and song off, no menu over it (PAGE_ATTRACT: menu_overlay draws
+  nothing), its sound as OPTIONS' DEMO SOUND has it (attract_sound_option, the cabinet's); A, Back or Start end it:
+  the objects, sprites, layers and sound cleared, its steps at 0, the TV drawn again (tv_forget), the page at
+  ATTRACT. The headless's page names (console_where) have the two new pages: without them a --video-dump of the
+  page read past the table (a crash, found by the check below).
+  - Checked (the console's headless, --actions, WIDE 16:9): INTRO's page at 740, ATTRACT picked at 770, the
+    attract's opening, the title, Bart's, Homer's, Lisa's and Marge's pages, the demo on stage 1 (GAME OVER in its
+    middle, as the arcade game's own attract has it: simpsons_game_headless's frames 2750 to 4500), the title and
+    the score ranking, and round again; A at 6000: the page at ATTRACT (6010), BACK, the menu on the TV with its song
+    (6080), then ARCADE and the character choice (6300) and the game from its story (6600). STORY from the page at
+    760: the choice under black, the story, and INTRO's page at STORY from 2300. Not checked on a device.

@@ -4,9 +4,9 @@
  *                 play and on every other screen, the layers' columns the game does not draw that far drawn from the
  *                 same maps, the players' boxes kept in the middle, and the objects coming in, going out and walking
  *                 past the wider screen's sides
- *    Version:     0.4.0
+ *    Version:     0.4.1
  *    Created:     13-11-2026
- *    Modified:    15-11-2026
+ *    Modified:    20-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -37,7 +37,9 @@
  *    stages, the name entry, the ending, and stage 3's elevator from the platform's standing till the play goes on at
  *    the shaft's top, its map blank past the cabinet's 288 columns, the platform's limits the cabinet's) are pictures
  *    of the board's width, centred: WIDE's sides there are their edges' colour (the TV's orange), or black where their
- *    edges are not of one colour; the presentation keeps the board's 320. (The elevator's sides of the shaft's own
+ *    edges are not of one colour, and black in stage 2's closing story, its fall off the cliff and down the gorge (as
+ *    4:3, Sebas); the presentation keeps the board's 320. A stage's card is a picture till the stage draws its play,
+ *    stage 3's too, drawn from its own scene: the play comes with its sides at once. (The elevator's sides of the shaft's own
  *    cells, climb_fill, are off: CLIMB_SIDES.)
  *
  *    The objects (the console's versions of the game's functions, console/replaced.txt): a stage's spawns come in at
@@ -107,6 +109,19 @@ static bool stage_step(unsigned step)
 {
 	return step == 2u || step == 4u || step == 6u || step == 7u || step == 8u || step == 9u || step == 11u
 		|| step == 13u || step == 15u;
+}
+
+/* A stage's title card (its step's phase 1, stage_title_card; stage 3's cemetery, step 7, has none: its phase 1 begins
+   its play): a picture, centred, till the stage draws its play's maps (its phase 2). Stage 3's card is drawn from its
+   stage's own scene (86, area 1), not the others' scene 02, and was taken for its play, its sides the card's maps':
+   the play then came in panning from them, and the goons the forest puts in at its start past the cabinet's right edge
+   stood in WIDE's sight (Sebas: "los secuaces esperan en altura de 4:3") */
+#define TITLE_PHASE         1u
+#define CEMETERY_STEP       7u
+
+static bool title_card(void)
+{
+	return step_phase == TITLE_PHASE && game_step != CEMETERY_STEP;
 }
 
 #define PHASE_STEPS         1u           /* mode_phase: the game's steps (game_run_step), */
@@ -203,12 +218,14 @@ static layer_map_area map_of(int layer)
 		|| !scene_area(layer ? block_scenes_b_ADDRESS : block_scenes_a_ADDRESS,
 			layer ? block_scenes_b_high_ADDRESS : block_scenes_a_high_ADDRESS, &map.block_bank, &map.blocks))
 		return map;
-	/* (its strips' table: their places in the bank's window, one after the other; past the last a word of 0000) */
+	/* (its strips' table: their places in the bank's window, one after the other or the same strip again, as stage 2's
+	   hole after its boss, 8 strips of the same void and its wall: drawn at the boss's place, map pixels 680-85F; past the
+	   last a word of 0000) */
 	for (int strip = 0; strip < STRIPS_MOST; strip++)
 	{
 		const int place = rom16(map.bank, (uint16_t)(map.strips + 2 * strip));
 
-		if (place < 0x6000 || place >= (int)BANK_WINDOW_END || place <= previous)
+		if (place < 0x6000 || place >= (int)BANK_WINDOW_END || place < previous)
 			break;
 		previous = place;
 		map.width = (strip + 1) * STRIP;
@@ -320,6 +337,7 @@ typedef struct
 	int x;                  /* (its scroll x at the last frame's end) */
 	uint16_t y;
 	uint8_t drawn_scene, drawn_area;
+	bool card;              /* (drawn whole by a stage's title card: title_card) */
 } layer_ring;
 
 static layer_ring rings[2];
@@ -349,6 +367,7 @@ static void whole_layer_drawn(int layer, int x, int columns)
 	ring->y = (uint16_t)layer_scroll_y(layer & 1);
 	ring->drawn_scene = map_scene;
 	ring->drawn_area = map_area;
+	ring->card = stage_step(game_step) && title_card();
 }
 
 void draw_layer_columns(uint16_t layer_and_columns, uint16_t *p_layer_map, uint16_t *p_tile_place)
@@ -530,6 +549,7 @@ enum { SHOW_BOARD, SHOW_PICTURE, SHOW_PLAY };    /* the board's 320 alone, a pic
 
 static unsigned last_step = 0xFFu, last_mode = 0xFFu;
 static int shown_now = SHOW_BOARD, shown_drawn = SHOW_BOARD;    /* (the next frame's, and the frame shown's) */
+static bool black_now, black_drawn;    /* (a picture's sides black whatever its edges: closing_story's) */
 static int wide_left_now, wide_right_now;
 
 static int screen_wide;    /* WIDE AUTO's, as the port says the screen is (WIDE_OFF till it does) */
@@ -572,16 +592,28 @@ static bool edges_masked(void)
 	return masked >= 48;
 }
 
+/* Stage 2's closing story once its floor has given way (stage_2_end_phase: the players off the cliff and down the
+   gorge, on maps of their own no wider than the ring, the gorge's scrolling up): a picture of the board's width,
+   centred, its sides black (Sebas: "cuando cae homero que es cinematica la pondria 4:3"), not the play's sides */
+#define STAGE_2_STEP        4u
+#define STAGE_2_END_PHASE   7u
+
+static bool closing_story(void)
+{
+	return game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE;
+}
+
 /* A stage's play: its maps drawn, the game's steps going on */
 static bool in_play(void)
 {
 	const int layer = camera_main_layer ? 1 : 0;
 
-	return console.page == PAGE_GAME && game_mode == GAME_MODE_GAME
+	return console.page == PAGE_GAME && game_mode == GAME_MODE_GAME && !closing_story()
 		&& (mode_phase == PHASE_STEPS || mode_phase == PHASE_CONTINUE || mode_phase == PHASE_GAME_OVER)
-		&& stage_step(game_step) && rings[layer].known && (rings[layer].drawn_scene & 0x80u);    /* (a stage's map: the
-		                                                                                             stage card's TV
-		                                                                                             is scene 02) */
+		&& stage_step(game_step) && rings[layer].known && (rings[layer].drawn_scene & 0x80u)    /* (a stage's map: the
+		                                                                                           stage card's TV is
+		                                                                                           scene 02, */
+		&& !rings[layer].card;    /* or stage 3's, its own scene's: till the stage draws its play) */
 }
 
 /* Stage 3's elevator: its step (7) till its scroll follows the camera (cemetery_scroll_update's step 5, the play at the
@@ -978,7 +1010,9 @@ void console_wide_frame(void)
 	last_mode = game_mode;
 	shown_drawn = shown_now;
 	climb_drawn = climb_now;
+	black_drawn = black_now;
 	shown_now = what_shows();
+	black_now = shown_now == SHOW_PICTURE && closing_story();
 	fixed_first = edges_masked() ? EDGE : 0;
 	fixed_last = SIMPSONS_VIDEO_WIDTH - 1 - fixed_first;
 	if (shown_now == SHOW_PLAY)
@@ -1136,7 +1170,8 @@ void wide_picture_sides(console_picture *frame)
 	if (shown_drawn != SHOW_PICTURE || (CLIMB_SIDES && climb_drawn) || (!frame->left && !frame->right))
 		return;    /* (stage 3's elevator, CLIMB_SIDES: its sides of the shaft's own cells, climb_fill) */
 	{
-		const uint32_t left = edge_colour(frame, first), right = edge_colour(frame, last);
+		const uint32_t left = black_drawn ? 0x000000u : edge_colour(frame, first);
+		const uint32_t right = black_drawn ? 0x000000u : edge_colour(frame, last);
 
 		draw_fill(frame, PICTURE_FIRST(frame), 0, first - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT, left);
 		draw_fill(frame, last + 1, 0, PICTURE_END(frame) - last - 1, SIMPSONS_VIDEO_HEIGHT, right);

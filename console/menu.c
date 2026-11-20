@@ -98,6 +98,7 @@ enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO
 	VIDEO_BACK, VIDEO_ITEMS };
 #endif
 enum { KONAMI_STAGE, KONAMI_LIVES, KONAMI_HEALTH, KONAMI_REPEATS, KONAMI_START, KONAMI_BACK, KONAMI_ITEMS };
+enum { INTRO_STORY, INTRO_ATTRACT, INTRO_BACK, INTRO_ITEMS };
 
 #ifdef SIMPSONS_SYSTEM_EXIT
 static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "INTRO", "OPTIONS" };
@@ -106,6 +107,13 @@ static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "
 	"EXIT" };
 #endif
 static int idle_frames;    /* the menu's frames with nothing pressed (IDLE_FRAMES: INTRO) */
+static const char *const intro_items[INTRO_ITEMS] = { "STORY", "ATTRACT", "BACK" };
+static const char *const intro_about[INTRO_ITEMS][2] = {
+	{ "SMITHERS TAKES THE DIAMOND", "AND MAGGIE WITH IT" },
+	{ "THE ARCADE DEMO AND HIGH SCORES", "ANY BUTTON COMES BACK" },
+	{ "", "" },
+};
+static bool story_picked;    /* INTRO's STORY picked on its page (not the menu left alone): back to the page */
 static const char *const plow_items[PLOW_ITEMS] = { "FREE PLAY", "BOSS RUSH", "BONUS GAMES", "FRANK GRIMES LIFE",
 	"BACK" };
 /* (what the chosen one is, under the lines) */
@@ -201,7 +209,7 @@ static void menu_page(uint32_t pressed)
 			open_page(PAGE_LAN, 0);
 			break;
 		case MENU_INTRO:
-			intro_start(console.last_presser);
+			open_page(PAGE_INTRO, INTRO_STORY);
 			break;
 		case MENU_OPTIONS:
 			open_page(PAGE_OPTIONS, 0);
@@ -210,6 +218,35 @@ static void menu_page(uint32_t pressed)
 			console.quit = true;
 			break;
 	}
+}
+
+/* INTRO: STORY, the story before stage 1 (modes.c), and ATTRACT, the cabinet's attract mode (console.c, the players'
+   issue 22: "The attract Movie watchable within the intro option"); jump or BACK, the menu again */
+static void intro_page(uint32_t pressed)
+{
+	if ((pressed & ACTION_BIT(ACTION_BACK)) || (chosen_now(pressed) && console.choice == INTRO_BACK))
+	{
+		open_page(PAGE_MENU, MENU_INTRO);
+		return;
+	}
+	if (!chosen_now(pressed))
+		return;
+	if (console.choice == INTRO_STORY)
+	{
+		story_picked = true;
+		intro_start(console.last_presser);
+	}
+	else if (console.choice == INTRO_ATTRACT)
+		console_attract_watch();
+}
+
+void menu_after_intro(void)
+{
+	if (story_picked)
+		open_page(PAGE_INTRO, INTRO_STORY);
+	else
+		open_page(PAGE_MENU, MENU_INTRO);
+	story_picked = false;
 }
 
 /* MR. PLOW MODE: its modes (modes.c), each a game for the player who picks it, the character choice first; jump or
@@ -724,14 +761,12 @@ static void starting_page(void)
 {
 	if (console.page_frames > STARTING_FRAMES)
 	{
-		open_page(PAGE_MENU, console.mode == MODE_INTRO ? MENU_INTRO : MENU_ARCADE);
+		if (console.mode == MODE_INTRO)
+			menu_after_intro();
+		else
+			open_page(PAGE_MENU, MENU_ARCADE);
 		console.mode = MODE_NONE;    /* (INTRO's black off) */
 	}
-}
-
-int menu_intro_line(void)
-{
-	return MENU_INTRO;
 }
 
 void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS])
@@ -754,6 +789,7 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 		case PAGE_OPTIONS: lines = OPTION_ITEMS; break;
 		case PAGE_VIDEO: lines = VIDEO_ITEMS; break;
 		case PAGE_KONAMI: lines = KONAMI_ITEMS; break;
+		case PAGE_INTRO: lines = INTRO_ITEMS; break;
 		default: break;
 	}
 	if (lines)
@@ -768,6 +804,7 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 	if (idle_frames >= IDLE_FRAMES)
 	{
 		idle_frames = 0;
+		story_picked = false;
 		intro_start(0);
 		return;
 	}
@@ -782,6 +819,9 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 			break;
 		case PAGE_MR_PLOW:
 			plow_page(pressed);
+			break;
+		case PAGE_INTRO:
+			intro_page(pressed);
 			break;
 		case PAGE_KONAMI:
 			konami_page_frame(pressed);
@@ -852,6 +892,18 @@ static void menu_screen(void)
 	list_lines(menu_items, MENU_ITEMS, MENU_Y, ITEM_STEP);
 	draw_game_letters_centred(target, COPYRIGHT_Y, 1, COPYRIGHT_COLOUR, COPYRIGHT);
 	draw_small_letters_centred(target, SIGNATURE_Y, SIGNATURE_COLOUR, SIGNATURE);
+}
+
+/* INTRO: its heading, its lines centred, and under them what the chosen one is (as MR. PLOW MODE's) */
+#define INTRO_ABOUT_Y       (LINE_Y + INTRO_ITEMS * LINE_STEP + 10)
+
+static void intro_overlay(void)
+{
+	page_box("INTRO", INTRO_ITEMS + 3);
+	list_lines(intro_items, INTRO_ITEMS, LINE_Y, LINE_STEP);
+	for (int line = 0; line < 2; line++)
+		draw_game_letters_centred(target, INTRO_ABOUT_Y + line * 12, 1, 0xC0C0C0u,
+			intro_about[console.choice >= 0 && console.choice < INTRO_ITEMS ? console.choice : INTRO_BACK][line]);
 }
 
 /* MR. PLOW MODE: its heading, its lines centred as the menu's, and under them what the chosen one is */
@@ -1078,8 +1130,8 @@ void console_pause_overlay(console_picture *frame, int choice)
 void menu_overlay(console_picture *frame)
 {
 	target = frame;
-	if (game_mode != GAME_MODE_ATTRACT)
-		return;
+	if (game_mode != GAME_MODE_ATTRACT || console.page == PAGE_ATTRACT)
+		return;    /* (INTRO > ATTRACT: the cabinet's attract mode alone) */
 	if (console.page == PAGE_STARTING || !tv_shown())
 	{
 		/* (the screen cleared for the TV, or for the game's start: black, not the screens the game leaves) */
@@ -1094,6 +1146,9 @@ void menu_overlay(console_picture *frame)
 			break;
 		case PAGE_MR_PLOW:
 			plow_overlay();
+			break;
+		case PAGE_INTRO:
+			intro_overlay();
 			break;
 		case PAGE_OPTIONS:
 			options_overlay();

@@ -6,6 +6,19 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 
 **To try**
 
+- **INTRO > ATTRACT** (the players' issue 22): INTRO on the menu has its page now: STORY, the story before stage 1
+  as before, and ATTRACT, the arcade's own attract mode with no menu over it (its opening, the title, the demo and
+  the high scores, round again), till a button (A, Back or Start) brings the page back. Its sound follows OPTIONS'
+  DEMO SOUND, as on the arcade machine.
+- **The picture drawn three times faster** (the players' issue 21, the Switch): a frame takes some 0.9 ms to draw on
+  a computer where it took 2.8 (WIDE 16:9), with the same pixels, so a slow device has the game at its speed with
+  far fewer pictures left out. Not tried on a Switch: tell how it goes there.
+- **WIDE, stage 2's end** (Sebas, from a player's video): when the Krusty balloon falls and the floor gives way, the
+  hole goes on past the picture's sides as one, where the sides showed pieces of its wall again. The fall off the
+  cliff and Homer's fall down the gorge are 4:3, black at both sides, as they have no more picture than the cabinet's.
+- **WIDE, the goons at stage 3's and stage 5's starts** (Sebas, from a player's video): they wait past the wider
+  picture's edge and walk in, instead of standing in sight at the 4:3 picture's edge. Stage 3's and stage 5's cards
+  are centred as the others.
 - **Slow devices** (the players' issue 21, the Switch): where a frame takes longer to draw than its time, the game
   and its sound keep their speed and some pictures are left out, instead of all of it slowing down with the sound
   breaking up. Not tried on a Switch: tell how it goes there, docked and handheld.

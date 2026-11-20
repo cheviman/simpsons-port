@@ -13,7 +13,7 @@
  *                             [--rom ROM_SET] [--write-pack FILE] [--dump FRAME ... --dump-dir DIR]
  *                             [--video-dump FRAME ... --video-dir DIR]
  *                             (simpsons_console_headless: [--actions FILE] [--wide KIND] [--wide-check]
- *                             [--arcade-start])
+ *                             [--wide-hashes FILE] [--arcade-start])
  *    The game (runtime/src/game.c: the program on the board, its own video and sound board) from its assets
  *    (--assets: the folder, assets/ by default, or the pack, simpsons.assets); --rom loads them from the player's ROM
  *    set straight instead, through the assets' layout (for the checks: the same state as the folder's).
@@ -37,7 +37,9 @@
  *    meanwhile: the window's pause holds it), and "dump" is the window's (none here). --wide KIND (off, 16:10, 16:9,
  *    20:9, auto, or its number: auto is OFF here, no screen) plays it with OPTIONS > VIDEO > WIDE so, the pictures
  *    written as wide as WIDE draws them, the console's picture over them; --wide-check says, each frame, which columns
- *    of WIDE's sides are not their layer's map's; --arcade-start runs the arcade's own attract mode and controls (a
+ *    of WIDE's sides are not their layer's map's; --wide-hashes FILE writes, each frame, the hash of the picture WIDE
+ *    draws (simpsons_video_wide_frame, before the console's own picture over it: "FRAME HASH WIDTH LEFT", the hash as
+ *    --video-hashes' over its columns), so a change to the video is seen in every frame of it; --arcade-start runs the arcade's own attract mode and controls (a
  *    script's coins and buttons straight onto the board). Each picture written says where the console stands, on the
  *    standard output. Its letters: font.bmp beside it.
  */
@@ -62,7 +64,7 @@
 #define USAGE "Usage: simpsons_console_headless [--frames N] [--hashes FILE] [--video-hashes FILE]" \
 	" [--sound-hashes FILE] [--sound-wav FILE] [--stereo] [--script FILE] [--assets FOLDER|PACK] [--rom ROM_SET]" \
 	" [--dump FRAME ... --dump-dir DIR] [--video-dump FRAME ... --video-dir DIR] [--actions FILE] [--wide KIND]" \
-	" [--wide-check] [--arcade-start]\n"
+	" [--wide-check] [--wide-hashes FILE] [--arcade-start]\n"
 #else
 #define USAGE "Usage: simpsons_headless [--frames N] [--hashes FILE] [--video-hashes FILE] [--sound-hashes FILE]" \
 	" [--sound-wav FILE] [--stereo] [--script FILE] [--service] [--assets FOLDER|PACK] [--rom ROM_SET]" \
@@ -81,6 +83,9 @@ static const char *g_video_dir = ".";
 static FILE *g_hashes;
 static FILE *g_video_hashes;
 static FILE *g_sound_hashes;
+#ifdef SIMPSONS_CONSOLE
+static FILE *g_wide_hashes;
+#endif
 static simpsons_script *g_script;
 static FILE *g_wav;
 static uint32_t g_wav_bytes;
@@ -136,7 +141,11 @@ static void finish(void)
 		fclose(g_video_hashes);
 	if (g_sound_hashes)
 		fclose(g_sound_hashes);
-	printf("frames:            %" PRIu64 "\n", simpsons_board.frame);
+#ifdef SIMPSONS_CONSOLE
+	if (g_wide_hashes)
+		fclose(g_wide_hashes);
+#endif
+	printf("frames:           %" PRIu64 "\n", simpsons_board.frame);
 	printf("interrupts taken:  %u\n", program_interrupts());
 	printf("sound IRQs:        %u\n", simpsons_board.sound_irqs);
 	printf("watchdog resets:   %u\n", simpsons_board.watchdog_resets);
@@ -351,6 +360,23 @@ static void dump_video(uint64_t frame)
 	write_bmp(path, pixels, width, SIMPSONS_VIDEO_MAX_WIDTH);
 }
 
+#ifdef SIMPSONS_CONSOLE
+/* --wide-hashes: FNV-1a over the picture WIDE draws, its columns' red, green and blue row by row, as
+   simpsons_video_hash's over the board's */
+static void write_wide_hash(uint64_t frame)
+{
+	int width;
+	const uint32_t *wide = simpsons_video_wide_frame(&width);
+	uint64_t hash = 0xcbf29ce484222325ull;
+
+	for (int y = 0; y < SIMPSONS_VIDEO_HEIGHT; y++)
+		for (int x = 0; x < width; x++)
+			for (int shift = 16; shift >= 0; shift -= 8)
+				hash = (hash ^ ((wide[y * SIMPSONS_VIDEO_MAX_WIDTH + x] >> shift) & 0xFFu)) * 0x100000001b3ull;
+	fprintf(g_wide_hashes, "%" PRIu64 " %016" PRIx64 " %d %d\n", frame, hash, width, simpsons_video_wide_left());
+}
+#endif
+
 /* A frame is done: the controls change, the frame's sound closes and its hashes are taken, as kref's */
 static void frame_done(void)
 {
@@ -387,6 +413,10 @@ static void frame_done(void)
 		fprintf(g_hashes, "%" PRIu64 " %016" PRIx64 "\n", number, simpsons_state_hash());
 	if (g_video_hashes)
 		fprintf(g_video_hashes, "%" PRIu64 " %016" PRIx64 "\n", number, simpsons_video_hash(game_frame()));
+#ifdef SIMPSONS_CONSOLE
+	if (g_wide_hashes)
+		write_wide_hash(number);
+#endif
 	for (int index = 0; index < g_dump_count; index++)
 		if (g_dumps[index] == number)
 			dump_memories(number);
@@ -491,6 +521,8 @@ int main(int argc, char **argv)
 		}
 		else if (!strcmp(argv[index], "--wide-check"))
 			g_wide_check = true;
+		else if (!strcmp(argv[index], "--wide-hashes") && has_value)
+			g_wide_hashes = open_output(argv[++index]);
 		else if (!strcmp(argv[index], "--arcade-start"))
 			arcade_start = true;
 #endif
@@ -516,7 +548,11 @@ int main(int argc, char **argv)
 		printf("%s: the assets pack written (version %08X)\n", pack, (unsigned)game_assets_version());
 		return 0;
 	}
-	if ((problem = game_reset(service, g_video_hashes != NULL || g_video_dump_count > 0)) != NULL)
+	if ((problem = game_reset(service, g_video_hashes != NULL || g_video_dump_count > 0
+#ifdef SIMPSONS_CONSOLE
+		|| g_wide_hashes != NULL
+#endif
+		)) != NULL)
 	{
 		fprintf(stderr, "The game does not start: %s\n", problem);
 		return 1;
