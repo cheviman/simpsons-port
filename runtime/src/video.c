@@ -5,7 +5,7 @@
  *                 board shows them
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    19-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -27,6 +27,11 @@
  *    x 8 cells of 16 x 16 pixels, zoomed, flipped or mirrored; its pen 15 shades what is under it when it
  *    casts a shadow. The pens become colours through the palette RAM (xBGR 555); a shaded pen takes 0.6 of
  *    its colour.
+ *
+ *    The pixels are MAME's; the way to them is this file's, for the machines that are slow: a tile's row and a
+ *    cell's row are taken from the ROM whole (their pens a nibble each: tile_row, cell_row) and an empty one is
+ *    passed at once, a layer with one scroll is drawn a tile at a time, the palette's pens are made again only for
+ *    the colours that changed, and a line becomes colours in one pass.
  *
  *    A port's WIDE (simpsons_video_set_wide, the console's): the same frame with columns more at its sides, the
  *    layers' maps and the sprites drawn there too, the bitmaps' screen at their column BITMAP_LEFT; the board's own
@@ -152,6 +157,13 @@ static uint16_t g_tile_pens[3][MAP_TILES];
 static uint32_t g_recoloured_pens[3 * COLOURS];
 static uint32_t g_shade_pens[3 * COLOURS];
 
+/* The palette RAM's colours the pens were last made from: g_pens' (none made yet: the RAM's zeros, black), the
+   recoloured pens', and each colour code's shade pen's for the shade's; and whether the recolouring was set since */
+static uint16_t g_palette_raw[COLOURS];
+static uint16_t g_recoloured_raw[COLOURS];
+static uint16_t g_shade_raw[COLOUR_CODES];
+static bool g_recolour_set = true;
+
 static void mark_tile(int map, int index)
 {
 	g_layers[map].dirty[index] = true;
@@ -223,9 +235,13 @@ static void tile_chip_write(int offset, uint8_t data)
    video takes them the same way) */
 static void load_chips(void)
 {
-	for (int offset = 0; offset < SIMPSONS_TILE_RAM_SIZE; offset++)
-		if (g_tile_ram[offset] != simpsons_board.tile_ram[offset])
-			tile_chip_write(offset, simpsons_board.tile_ram[offset]);
+	/* (the writes in the RAM's order; a stretch nothing wrote to is passed at once) */
+	_Static_assert(SIMPSONS_TILE_RAM_SIZE % 64 == 0, "the tile RAM compared in stretches of 64 bytes");
+	for (int stretch = 0; stretch < SIMPSONS_TILE_RAM_SIZE; stretch += 64)
+		if (memcmp(&g_tile_ram[stretch], &simpsons_board.tile_ram[stretch], 64) != 0)
+			for (int offset = stretch; offset < stretch + 64; offset++)
+				if (g_tile_ram[offset] != simpsons_board.tile_ram[offset])
+					tile_chip_write(offset, simpsons_board.tile_ram[offset]);
 	for (int word = 0; word < SIMPSONS_SPRITE_RAM_SIZE / 2; word++)
 		g_sprite_ram[word] = (uint16_t)(simpsons_board.object_ram[word * 2] << 8 | simpsons_board.object_ram[word * 2 + 1]);
 	memcpy(g_sprite_registers, simpsons_board.sprite_registers, sizeof(g_sprite_registers));
@@ -373,18 +389,28 @@ static int wrap(int value, int size)
 	return value < 0 ? value + size : value;
 }
 
-/* The pen of a map pixel (0-511, 0-255) and its colour code, from the tile there */
-static int tile_pixel(const layer *map, int x, int y, int *colour)
-{
-	const tile_info *info = &map->tiles[(y >> 3) * 64 + (x >> 3)];
-	const int row = info->flip_y ? 7 - (y & 7) : y & 7;
-	const int column = x & 7;
-	const uint8_t *data = &game_tiles[(size_t)info->code * 32u + (size_t)row * 4u];
+/* A byte of a tile's row (a plane's: its bit 7 the leftmost pixel) with each pixel's bit at the bottom of a nibble,
+   column c's at bit 4c */
+#define SPREAD_BIT(byte, column)    ((uint32_t)(((byte) >> (7 - (column))) & 1) << (4 * (column)))
+#define SPREAD(byte)                (SPREAD_BIT(byte, 0) | SPREAD_BIT(byte, 1) | SPREAD_BIT(byte, 2) | SPREAD_BIT(byte, 3) \
+	| SPREAD_BIT(byte, 4) | SPREAD_BIT(byte, 5) | SPREAD_BIT(byte, 6) | SPREAD_BIT(byte, 7))
+#define SPREAD_4(byte)              SPREAD(byte), SPREAD((byte) + 1), SPREAD((byte) + 2), SPREAD((byte) + 3)
+#define SPREAD_16(byte)             SPREAD_4(byte), SPREAD_4((byte) + 4), SPREAD_4((byte) + 8), SPREAD_4((byte) + 12)
+#define SPREAD_64(byte)             SPREAD_16(byte), SPREAD_16((byte) + 16), SPREAD_16((byte) + 32), SPREAD_16((byte) + 48)
+static const uint32_t k_spread[256] = { SPREAD_64(0), SPREAD_64(64), SPREAD_64(128), SPREAD_64(192) };
 
-	*colour = info->colour;
-	return ((data[3] >> (7 - column)) & 1) << 3 | ((data[2] >> (7 - column)) & 1) << 2
-		| ((data[1] >> (7 - column)) & 1) << 1 | ((data[0] >> (7 - column)) & 1);
+/* The eight pens of a row of a tile (four bytes a row, a plane each), column c's in bits 4c to 4c + 3 */
+static inline uint32_t tile_row(int code, int row)
+{
+	const uint8_t *data = &game_tiles[(size_t)code * 32u + (size_t)row * 4u];
+
+	if (!(data[0] | data[1] | data[2] | data[3]))
+		return 0;    /* (an empty row, as most of a layer over the others are) */
+	return k_spread[data[0]] | k_spread[data[1]] << 1 | k_spread[data[2]] << 2 | k_spread[data[3]] << 3;
 }
+
+/* (whether none of a row's eight pens is 0) */
+#define NO_PEN_0(pens)  ((((pens) | (pens) >> 1 | (pens) >> 2 | (pens) >> 3) & 0x11111111u) == 0x11111111u)
 
 /* The recolouring's rules for layer 'map' (a port's): its map cells' pens recoloured in the frame drawn, from the tiles
    the map shows */
@@ -405,6 +431,46 @@ static void take_tile_rules(int map)
 				if (code >= rule->first_code && code <= rule->last_code)
 					g_tile_pens[map][row * 64 + column] |= rule->pens;
 			}
+	}
+}
+
+/* (whether a tile shows nothing: its eight rows empty) */
+static inline bool tile_empty(int code)
+{
+	uint64_t rows[4];
+
+	memcpy(rows, &game_tiles[(size_t)code * 32u], sizeof(rows));
+	return !(rows[0] | rows[1] | rows[2] | rows[3]);
+}
+
+/* A run of a tile row's pixels over a line of the bitmap, without its pen 0, marked 'priority' in the priority
+   bitmap: 'run' pixels from 'line' and 'line_priority' on, the row's columns from 'column' on (to the right, or to
+   the left when flipped: a run of 8 not flipped is the whole row, from its column 0), in colour 'colour' (its first
+   pen's place in the palette); 'recoloured', the pens a port recolours in this tile */
+static inline void draw_tile_run(uint16_t *line, uint8_t *line_priority, int run, uint32_t pens, int column, bool flipped,
+	int colour, unsigned recoloured, uint8_t priority)
+{
+	if (run == 8 && !flipped && !recoloured && NO_PEN_0(pens))
+	{
+		/* (a whole row with no pen 0, as most of a background's are: its eight pixels at once) */
+		uint64_t under;
+
+		for (int index = 0; index < 8; index++)
+			line[index] = (uint16_t)(colour + (int)((pens >> (4 * index)) & 15));
+		memcpy(&under, line_priority, sizeof(under));
+		under |= priority * 0x0101010101010101ull;
+		memcpy(line_priority, &under, sizeof(under));
+		return;
+	}
+	for (int index = 0; index < run; index++, column += flipped ? -1 : 1)
+	{
+		const unsigned pen = (pens >> (4 * column)) & 15;
+
+		if (pen)
+		{
+			line[index] = (uint16_t)((colour + (int)pen) | ((recoloured >> pen) & 1 ? RECOLOURED : 0));
+			line_priority[index] |= priority;
+		}
 	}
 }
 
@@ -436,86 +502,139 @@ static void draw_layer(int map, uint8_t priority)
 	rows = same_rows ? 1 : scroll->rows;
 	cols = same_cols ? 1 : scroll->cols;
 
+	/* The screen's columns drawn (WIDE: its sides too, the fixed layer's columns alone, moved by dx, and nothing past
+	   the map's end) */
+	const int dx = map == 0 ? g_fixed_dx : 0;
+	const int source_first = map == 0 ? g_fixed_first : -0x10000, source_last = map == 0 ? g_fixed_last : 0x10000;
+	int64_t first = CLIP_LEFT - g_left, last = CLIP_RIGHT + g_right;
+
+	if (first < (int64_t)source_first + dx)
+		first = (int64_t)source_first + dx;
+	if (last > (int64_t)source_last + dx)
+		last = (int64_t)source_last + dx;
+	if (first < g_first[map])
+		first = g_first[map];
+	if (last > g_last[map])
+		last = g_last[map];
+	if (first > last)
+		return;
+
+	const int first_x = (int)first, last_x = (int)last;    /* (some of the picture's: an int's) */
+
+	/* px and py are the map's pixel a screen pixel shows, before the flip turns the map round; a run is a line's
+	   pixels of one tile, from px to the end of the tile or of the columns drawn */
+	if (!mixed && rows == 1 && cols == 1)
+	{
+		/* One scroll for the whole layer, as nearly every frame has: a tile at a time, its lines one after another,
+		   and a tile that shows nothing passed at once */
+		const int px_first = wrap(first_x - dx - rowscroll[0], MAP_WIDTH);
+		int lines, run;
+
+		for (int y = CLIP_TOP; y <= CLIP_BOTTOM; y += lines)
+		{
+			const int py = wrap(y - colscroll[0], MAP_HEIGHT);
+
+			lines = 8 - (py & 7);    /* (to the end of the row of tiles) */
+			if (lines > CLIP_BOTTOM - y + 1)
+				lines = CLIP_BOTTOM - y + 1;
+			for (int x = first_x, px = px_first; x <= last_x; x += run, px = (px + run) & (MAP_WIDTH - 1))
+			{
+				const int map_x = flipped ? MAP_WIDTH - 1 - px : px, map_y = flipped ? MAP_HEIGHT - 1 - py : py;
+				const int cell = (map_y >> 3) * 64 + (map_x >> 3);
+				const tile_info *info = &scroll->tiles[cell];
+
+				run = 8 - (px & 7);
+				if (run > last_x - x + 1)
+					run = last_x - x + 1;
+				if (tile_empty(info->code))
+					continue;
+				for (int index = 0; index < lines; index++)
+				{
+					/* (the line's row of the tile: the map's rows go up the screen when flipped) */
+					const int row = (flipped ? map_y - index : map_y + index) & 7;
+					const uint32_t pens = tile_row(info->code, info->flip_y ? 7 - row : row);
+
+					if (pens)
+						draw_tile_run(&g_bitmap[AT(x, y + index)], &g_priority[AT(x, y + index)], run, pens, map_x & 7,
+							flipped, info->colour * 16, g_tile_pens[map][cell], priority);
+				}
+			}
+		}
+		return;
+	}
+
+	/* A scroll by rows, by columns or both: a line at a time (a line's scroll is one, and a column of the map has
+	   one too) */
 	for (int y = CLIP_TOP; y <= CLIP_BOTTOM; y++)
 	{
-		uint16_t *line = &g_bitmap[AT(0, y)];
-		uint8_t *line_priority = &g_priority[AT(0, y)];
-		/* (WIDE: the fixed layer's columns alone, moved) */
-		const int dx = map == 0 ? g_fixed_dx : 0;
-		const int first = map == 0 ? g_fixed_first : -0x10000, last = map == 0 ? g_fixed_last : 0x10000;
+		int line_scroll = rowscroll[0], line_py = 0, start_x = 0, run;
 
-		for (int x = CLIP_LEFT - g_left; x <= CLIP_RIGHT + g_right; x++)
+		if (mixed)
 		{
-			int px, py, colour, pen;
-			const int source_x = x - dx;    /* (the map's column drawn at x) */
+			const int band = y / (MAP_HEIGHT / scroll->rows);
 
-			if (source_x < first || source_x > last)
-				continue;
-			if (x < g_first[map] || x > g_last[map])
-				continue;    /* (WIDE: past the map's end) */
+			line_scroll = rowscroll[band];
+			start_x = scroll->rowscroll[flipped ? scroll->rows - 1 - band : band] & ~7;
+			if (!flipped)
+				start_x = -start_x;
+		}
+		else if (cols == 1)
+		{
+			line_py = wrap(y - colscroll[0], MAP_HEIGHT);
+			line_scroll = rowscroll[line_py / (MAP_HEIGHT / rows)];
+		}
+		for (int x = first_x, px = wrap(first_x - dx - line_scroll, MAP_WIDTH); x <= last_x;
+			x += run, px = (px + run) & (MAP_WIDTH - 1))
+		{
+			int py = line_py;
+
+			run = 8 - (px & 7);
+			if (run > last_x - x + 1)
+				run = last_x - x + 1;
 			if (mixed)
-			{
-				const int band = y / (MAP_HEIGHT / scroll->rows);
-				int start_x = scroll->rowscroll[flipped ? scroll->rows - 1 - band : band] & ~7;
-
-				px = wrap(source_x - rowscroll[band], MAP_WIDTH);
-				if (!flipped)
-					start_x = -start_x;
 				py = wrap(y - colscroll[((start_x + (px & ~7)) >> 3) & 0x3F], MAP_HEIGHT);
-			}
-			else if (rows == 1 && cols == 1)
-			{
-				px = wrap(source_x - rowscroll[0], MAP_WIDTH);
-				py = wrap(y - colscroll[0], MAP_HEIGHT);
-			}
-			else if (cols == 1)
-			{
-				py = wrap(y - colscroll[0], MAP_HEIGHT);
-				px = wrap(source_x - rowscroll[py / (MAP_HEIGHT / rows)], MAP_WIDTH);
-			}
-			else
-			{
-				px = wrap(source_x - rowscroll[0], MAP_WIDTH);
+			else if (cols != 1)
 				py = wrap(y - colscroll[px / (MAP_WIDTH / cols)], MAP_HEIGHT);
-			}
-			if (flipped)
-			{
-				px = MAP_WIDTH - 1 - px;
-				py = MAP_HEIGHT - 1 - py;
-			}
-			pen = tile_pixel(scroll, px, py, &colour);
-			if (pen)
-			{
-				const int recoloured = (g_tile_pens[map][(py >> 3) * 64 + (px >> 3)] >> pen) & 1;
 
-				line[x] = (uint16_t)((colour * 16 + pen) | (recoloured ? RECOLOURED : 0));
-				line_priority[x] |= priority;
-			}
+			const int map_x = flipped ? MAP_WIDTH - 1 - px : px, map_y = flipped ? MAP_HEIGHT - 1 - py : py;
+			const int cell = (map_y >> 3) * 64 + (map_x >> 3);
+			const tile_info *info = &scroll->tiles[cell];
+			const uint32_t pens = tile_row(info->code, info->flip_y ? 7 - (map_y & 7) : map_y & 7);
+
+			if (pens)
+				draw_tile_run(&g_bitmap[AT(x, y)], &g_priority[AT(x, y)], run, pens, map_x & 7, flipped, info->colour * 16,
+					g_tile_pens[map][cell], priority);
 		}
 	}
 }
 
-/* A 16 x 16 sprite cell's pen (the K053247's sprite layout: 8 bytes a row, two pixels a byte, the bytes of each
-   word swapped) */
-static int cell_pixel(int code, int x, int y)
+/* The sixteen pens of a row of a 16 x 16 sprite cell (the K053247's sprite layout: 8 bytes a row, two pixels a byte,
+   the left one its high nibble, the bytes of each word swapped), column c's in bits 4c to 4c + 3 */
+static uint64_t cell_row(int code, int y)
 {
-	static const uint8_t k_nibble[16] = { 2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13 };
-	const int nibble = k_nibble[x];
-	const uint8_t data = game_sprites[(size_t)code * 128u + (size_t)y * 8u + (size_t)(nibble >> 1)];
+	const uint8_t *data = &game_sprites[(size_t)code * 128u + (size_t)y * 8u];
+	uint64_t row = 0;
 
-	return (nibble & 1) ? data & 0x0F : data >> 4;
+	for (int byte = 0; byte < 8; byte++)
+		row |= (uint64_t)data[byte] << (8 * byte);
+	row = (row & 0x00FF00FF00FF00FFull) << 8 | ((row >> 8) & 0x00FF00FF00FF00FFull);
+	return (row & 0x0F0F0F0F0F0F0F0Full) << 4 | ((row >> 4) & 0x0F0F0F0F0F0F0F0Full);
 }
 
-/* drawgfx's PIXEL_OP_REBASE_TRANSTABLE16_PRIORITY: a pixel of a cell over the bitmap, by the pen's draw mode,
-   unless the priority bitmap says something nearer is there */
-static void cell_pen(uint16_t *destination, uint8_t *priority, int pen, int colour, uint32_t mask, const uint8_t *modes,
-	unsigned recoloured_pens, bool shade)
+/* The sixteen pixels of that row a port's recolouring puts in the shade (none: NULL), column c's in bit c */
+static unsigned shade_row(const uint8_t *shade_mask, int y)
+{
+	return shade_mask ? (unsigned)(shade_mask[2 * y] | shade_mask[2 * y + 1] << 8) : 0u;
+}
+
+/* drawgfx's PIXEL_OP_REBASE_TRANSTABLE16_PRIORITY: a pixel of a cell over the bitmap, by the pen's draw mode
+   (never pen 0, which draws nothing), unless the priority bitmap says something nearer is there */
+static inline void cell_pen(uint16_t *destination, uint8_t *priority, int pen, int colour, uint32_t mask,
+	const uint8_t *modes, unsigned recoloured_pens, bool shade)
 {
 	const int mode = modes[pen];
 	const uint8_t under = *priority;
 
-	if (mode == DRAW_NONE)
-		return;
 	if (mode == DRAW_SOURCE)
 	{
 		if (((1u << (under & 0x1F)) & mask) == 0)
@@ -561,12 +680,6 @@ static const uint8_t *cell_shade_mask(int code, int colour)
 	return g_recolouring.shade_masks[g_recolouring.cell_shades[code % SPRITE_CELLS] - 1];
 }
 
-/* (a cell's pixel at x, y of its 16 x 16 in the mask) */
-static bool in_shade(const uint8_t *shade_mask, int x, int y)
-{
-	return shade_mask && ((shade_mask[(y * 16 + x) >> 3] >> ((y * 16 + x) & 7)) & 1);
-}
-
 /* drawgfx's prio_transtable: a cell at its size */
 static void draw_cell(int code, int colour, bool flip_x, bool flip_y, int left, int top, uint32_t mask, const uint8_t *modes)
 {
@@ -599,9 +712,22 @@ static void draw_cell(int code, int colour, bool flip_x, bool flip_y, int left, 
 	colour = 16 * (colour % COLOUR_CODES);
 	code %= SPRITE_CELLS;
 	for (int y = top; y <= bottom; y++, source_y += flip_y ? -1 : 1)
-		for (int x = left, sx = source_x; x <= right; x++, sx += flip_x ? -1 : 1)
-			cell_pen(&g_bitmap[AT(x, y)], &g_priority[AT(x, y)], cell_pixel(code, sx, source_y), colour, mask, modes,
-				recoloured_pens, in_shade(shade_mask, sx, source_y));
+	{
+		const uint64_t pens = cell_row(code, source_y);
+		const unsigned shade = shade_row(shade_mask, source_y);
+		uint16_t *line = &g_bitmap[AT(left, y)];
+		uint8_t *line_priority = &g_priority[AT(left, y)];
+
+		if (!pens)
+			continue;
+		for (int x = 0, sx = source_x; x <= right - left; x++, sx += flip_x ? -1 : 1)
+		{
+			const int pen = (int)(pens >> (4 * sx)) & 15;
+
+			if (pen)
+				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes, recoloured_pens, (shade >> sx) & 1);
+		}
+	}
 }
 
 /* drawgfx's prio_zoom_transtable: a cell scaled (16.16 scales), at its size when they are 1 */
@@ -660,11 +786,22 @@ static void draw_cell_zoomed(int code, int colour, bool flip_x, bool flip_y, int
 	}
 	for (int y = top; y <= bottom; y++, source_y += dy)
 	{
+		const uint64_t pens = cell_row(code, source_y >> 16);
+		const unsigned shade = shade_row(shade_mask, source_y >> 16);
+		uint16_t *line = &g_bitmap[AT(left, y)];
+		uint8_t *line_priority = &g_priority[AT(left, y)];
 		int32_t sx = source_x;
 
-		for (int x = left; x <= right; x++, sx += dx)
-			cell_pen(&g_bitmap[AT(x, y)], &g_priority[AT(x, y)], cell_pixel(code, sx >> 16, source_y >> 16), colour, mask,
-				modes, recoloured_pens, in_shade(shade_mask, sx >> 16, source_y >> 16));
+		if (!pens)
+			continue;
+		for (int x = 0; x <= right - left; x++, sx += dx)
+		{
+			const int pen = (int)(pens >> (4 * (sx >> 16))) & 15;
+
+			if (pen)
+				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes, recoloured_pens,
+					(shade >> (sx >> 16)) & 1);
+		}
 	}
 }
 
@@ -912,25 +1049,47 @@ static void put_pens(uint32_t *pens, int entry, int raw)
 		| adjust(blue, highlight);
 }
 
+static uint16_t palette_colour(int entry)
+{
+	return (uint16_t)(simpsons_board.palette[entry * 2] << 8 | simpsons_board.palette[entry * 2 + 1]);
+}
+
+/* The pens of the palette RAM's colours that changed since they were last made (g_pens is a function of the RAM's
+   colour alone; a port's recoloured and shade pens, of it and of the recolouring: all of them again once it is set) */
 static void load_palette(void)
 {
 	for (int entry = 0; entry < COLOURS; entry++)
 	{
-		const int raw = simpsons_board.palette[entry * 2] << 8 | simpsons_board.palette[entry * 2 + 1];
+		const uint16_t raw = palette_colour(entry);
 
-		put_pens(g_pens, entry, raw);
-		if (!g_recolour)
-			continue;
-		/* (a port's recolouring: the pen's colour recoloured; the shade's, from its colour code's shade pen) */
-		put_pens(g_recoloured_pens, entry, g_recolour((uint16_t)(raw & 0x7FFF)));
-		if (g_recolouring.shade)
+		if (raw != g_palette_raw[entry])
 		{
-			const int source = (entry & ~15) + (g_recolouring.shade_pen & 15);
-			const int source_raw = simpsons_board.palette[source * 2] << 8 | simpsons_board.palette[source * 2 + 1];
-
-			put_pens(g_shade_pens, entry, g_recolouring.shade((uint16_t)(source_raw & 0x7FFF)));
+			g_palette_raw[entry] = raw;
+			put_pens(g_pens, entry, raw);
+		}
+		/* (a port's recolouring: the pen's colour recoloured) */
+		if (g_recolour && (g_recolour_set || raw != g_recoloured_raw[entry]))
+		{
+			g_recoloured_raw[entry] = raw;
+			put_pens(g_recoloured_pens, entry, g_recolour((uint16_t)(raw & 0x7FFF)));
 		}
 	}
+	/* (and the shade's, the same for a colour code's sixteen pens: from the code's shade pen) */
+	for (int code = 0; g_recolour && g_recolouring.shade && code < COLOUR_CODES; code++)
+	{
+		const uint16_t raw = palette_colour(code * 16 + (g_recolouring.shade_pen & 15));
+
+		if (g_recolour_set || raw != g_shade_raw[code])
+		{
+			const uint16_t shade = g_recolouring.shade((uint16_t)(raw & 0x7FFF));
+
+			g_shade_raw[code] = raw;
+			for (int pen = 0; pen < 16; pen++)
+				put_pens(g_shade_pens, code * 16 + pen, shade);
+		}
+	}
+	if (g_recolour)
+		g_recolour_set = false;
 }
 
 /* A bitmap pixel's colour: its pen's, or its pen recoloured or in the shade (a port's) */
@@ -942,6 +1101,28 @@ static uint32_t pixel_colour(uint16_t value)
 		return g_recoloured_pens[(value & PEN_PART) % (3 * COLOURS)];
 	return g_pens[value % (3 * COLOURS)];
 }
+
+/* A stretch of a line of the bitmap as colours (nearly every pixel is a pen and nothing else) */
+static void line_colours(uint32_t *colours, const uint16_t *pixels, int count)
+{
+	int x = 0;
+
+	for (; x + 4 <= count; x += 4)
+		if ((pixels[x] | pixels[x + 1] | pixels[x + 2] | pixels[x + 3]) < 2 * COLOURS)
+		{
+			/* (four pens of the palette's, shaded or not) */
+			colours[x] = g_pens[pixels[x]];
+			colours[x + 1] = g_pens[pixels[x + 1]];
+			colours[x + 2] = g_pens[pixels[x + 2]];
+			colours[x + 3] = g_pens[pixels[x + 3]];
+		}
+		else
+			for (int index = x; index < x + 4; index++)
+				colours[index] = pixel_colour(pixels[index]);
+	for (; x < count; x++)
+		colours[x] = pixel_colour(pixels[x]);
+}
+_Static_assert((2 * COLOURS & (2 * COLOURS - 1)) == 0, "pens below a power of two are so together too");
 
 /* simpsons.cpp's screen_update */
 static void draw(simpsons_frame *frame)
@@ -977,12 +1158,16 @@ static void draw(simpsons_frame *frame)
 		}
 	}
 
-	for (int y = CLIP_TOP; y <= CLIP_BOTTOM; y++)
-		for (int x = CLIP_LEFT - g_left; x <= CLIP_RIGHT + g_right; x++)
-		{
-			g_bitmap[AT(x, y)] = (uint16_t)(16 * background);
-			g_priority[AT(x, y)] = 0;
-		}
+	const int columns = SIMPSONS_VIDEO_WIDTH + g_left + g_right;    /* (WIDE's sides too) */
+
+	for (int y = CLIP_TOP; columns > 0 && y <= CLIP_BOTTOM; y++)
+	{
+		uint16_t *line = &g_bitmap[AT(CLIP_LEFT - g_left, y)];
+
+		for (int x = 0; x < columns; x++)
+			line[x] = (uint16_t)(16 * background);
+		memset(&g_priority[AT(CLIP_LEFT - g_left, y)], 0, (size_t)columns);
+	}
 	draw_layer(order[0], 1);
 	draw_layer(order[1], 2);
 	draw_layer(order[2], 4);
@@ -990,14 +1175,28 @@ static void draw(simpsons_frame *frame)
 
 	load_palette();
 	for (int y = 0; y < SIMPSONS_VIDEO_HEIGHT; y++)
-		for (int x = 0; x < SIMPSONS_VIDEO_WIDTH; x++)
-			frame->pixels[y * SIMPSONS_VIDEO_WIDTH + x] = pixel_colour(g_bitmap[AT(x, CLIP_TOP + y)]);
-	/* WIDE's picture: the same with its sides */
+		line_colours(&frame->pixels[y * SIMPSONS_VIDEO_WIDTH], &g_bitmap[AT(0, CLIP_TOP + y)], SIMPSONS_VIDEO_WIDTH);
+	/* WIDE's picture: the same with its sides (its columns that are the board's, from 'board' to before 'end', as the
+	   frame has them) */
 	g_wide_width = SIMPSONS_VIDEO_WIDTH + g_left + g_right;
 	g_wide_left = g_left;
-	for (int y = 0; (g_left || g_right) && y < SIMPSONS_VIDEO_HEIGHT; y++)
-		for (int x = 0; x < g_wide_width; x++)
-			g_wide[y * SIMPSONS_VIDEO_MAX_WIDTH + x] = pixel_colour(g_bitmap[AT(x - g_left, CLIP_TOP + y)]);
+	if (g_left || g_right)
+	{
+		const int board = g_left > 0 ? g_left : 0;
+		const int most = g_left + SIMPSONS_VIDEO_WIDTH < g_wide_width ? g_left + SIMPSONS_VIDEO_WIDTH : g_wide_width;
+		const int end = most > board ? most : board;
+
+		for (int y = 0; y < SIMPSONS_VIDEO_HEIGHT; y++)
+		{
+			uint32_t *wide = &g_wide[y * SIMPSONS_VIDEO_MAX_WIDTH];
+			const uint16_t *line = &g_bitmap[AT(-g_left, CLIP_TOP + y)];
+
+			line_colours(wide, line, board);
+			memcpy(&wide[board], &frame->pixels[y * SIMPSONS_VIDEO_WIDTH + board - g_left],
+				(size_t)(end - board) * sizeof(uint32_t));
+			line_colours(&wide[end], &line[end], g_wide_width - end);
+		}
+	}
 }
 
 /* WIDE's settings for the frame about to be drawn (only with a wider picture: the board's own shows its maps whole) */
@@ -1072,6 +1271,7 @@ void simpsons_video_set_recolour(const simpsons_video_recolouring *recolouring)
 	else
 		memset(&g_recolouring, 0, sizeof(g_recolouring));
 	g_recolour = g_recolouring.colour;
+	g_recolour_set = true;
 }
 
 void simpsons_video_vblank_start(void)
