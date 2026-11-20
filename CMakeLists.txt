@@ -5,7 +5,7 @@
 # Modified:    13-11-2026
 # Author:      Sebastian Toyos
 cmake_minimum_required(VERSION 3.20)
-project(simpsons VERSION 1.0.1 LANGUAGES C CXX)    # (the port's release: The Simpsons' OPTIONS shows it)
+project(simpsons VERSION 1.0.2 LANGUAGES C CXX)    # (the port's release: The Simpsons' OPTIONS shows it)
 
 # A generator of one configuration (Makefiles, Ninja: Linux's and macOS's by default) given no build type builds the
 # game optimized, as the packages are (outrunners-port's: without, it is slower)

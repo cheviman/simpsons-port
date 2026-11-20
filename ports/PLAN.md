@@ -758,3 +758,25 @@ day: What was done, 15-11-2026).
     Anbernic and Android (their buttons' pictures); Back (the Switch's -) still pauses whatever is bound to it. The
     25 scenarios not run again: nothing of theirs changed here (the window's main.c, the console's menu.c, CMake),
     and the checkout had the video's changes of another session in progress, with its own runs going.
+- **The video's own speed, issue 21's root cause** (19-11-2026, a session of its own; Sebas, as it was measured: "si
+  es una tecnica que sirve, tengamosla en cuenta para los otros ports"): runtime/src/video.c drew a pixel at a time
+  (the three tile layers 68 % of a drawn frame, the two passes from pens to colours 17 %, the sprites 6 %). Now a
+  tile's row and a sprite cell's row are taken from the ROM whole and an empty one passed at once, a layer with one
+  scroll is drawn a tile at a time, the palette's pens are made again only for the colours that changed, a line
+  becomes colours in one pass and WIDE's frame copies the board's columns. The video: 2.09 -> 0.25 ms a frame in WIDE
+  16:9, 1.62 -> 0.19 in 4:3; a frame drawn, the way issue 21 was measured (--fast, SDL's dummy video, stage 1's play,
+  4000 frames): 2.82 -> 0.94 ms in WIDE 16:9, 2.28 -> 0.77 in 4:3. Not a pixel changed: the 25 scenarios identical
+  (state, picture, sound); every frame of every script in WIDE off, 16:10, 16:9 and 20:9 and of two games of The
+  Simpsons' own the same as before (`simpsons_console_headless --wide-hashes`, new: 216 runs' files, 2,914,160
+  hashes); the video before and the new one drawing the same random boards (flips, every scroll, zoom, shadows, WIDE's
+  negative sides, the recolouring, saved states), 800,000 frames the same, three planted bugs caught. MSVC and GCC
+  -Wall -Wextra, no warnings; nothing of the ROM in the executables. Made in the decompilation (runtime/src/video.c
+  there, its commit 78b39f4, its 25 scenarios identical) and brought by the merge (20-11-2026: 23d02c5, the conflict
+  resolved with the port's tested file); video.h says the recolouring's functions are of the colour alone. Not tried
+  on a Switch. The technique for the other ports: the skill ports-dispositivos, point 36.
+- **20-11-2026, 1.0.2** (Sebas: "cuando tengas todo, responde los tickets 21,22, commit, push, y version nueva"): the
+  players' issues 21 (the video three times faster, CONTROLS on the Switch, the late frames left out) and 22 (INTRO >
+  ATTRACT), WIDE at stage 2's end and stages 3's and 5's starts (console/PLAN.md), and the rest of testing's list;
+  version 1.0.2 (CMakeLists.txt), docs/releases/v1.0.2.md, testing.md's list emptied; main fast-forwarded to testing,
+  the tag v1.0.2 once the CI is green on that commit. The 25 scenarios identical after the merge. Not tried on a
+  device.
