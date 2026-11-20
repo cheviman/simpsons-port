@@ -4,7 +4,7 @@
  *                 play and on every other screen, the layers' columns the game does not draw that far drawn from the
  *                 same maps, the players' boxes kept in the middle, and the objects coming in, going out and walking
  *                 past the wider screen's sides
- *    Version:     0.4.1
+ *    Version:     0.4.2
  *    Created:     13-11-2026
  *    Modified:    20-11-2026
  *    Author:      Sebastian Toyos
@@ -44,7 +44,8 @@
  *
  *    The objects (the console's versions of the game's functions, console/replaced.txt): a stage's spawns come in at
  *    their place past the wider screen's right side (spawn_stage_objects: due when the camera is that much closer;
- *    those that come from the left, past its left side), and an object goes out, stops, counts as on the screen and
+ *    those that come from the left, past its left side; stage 2's teacup ride's hub as on the board, as it takes itself
+ *    off past the board's right side: due_as_on_board), and an object goes out, stops, counts as on the screen and
  *    a player walks to the screen's edges as on the board, but by the wider screen's sides (enemy_remove_off_screen,
  *    remove_off_screen, stop_beyond_screen_edge, enemy_on_screen, player_check_motion, player_check_screen_edges:
  *    the same C with their limits moved), and the enemies' moves 9 and 3 stop them past the wider screen's sides, not
@@ -1458,6 +1459,20 @@ int console_wide_spawn_check(char *text, size_t size)
 	return shown;
 }
 
+/* A spawn due as on the board, not as far earlier as WIDE's right side is wide: stage 2's teacup ride's hub (list 1's
+   type 0F, teacup_goon_ride_update), which takes itself off past the board's right side (its x 1E0 on, and its start
+   puts it 40 pixels on from its place: 1D0 on the board, 200 put in by WIDE's side), so in WIDE it was gone in its
+   first frame and its arms and the goons riding them never came (a player's report: "the enemies inside the cups
+   (when you get the hammer) are not showing up"). Those after it in the list wait for it, as on the board */
+#define RIDE_HUB_KIND       0x0Fu
+#define SPAWN_LIST          0x0Cu        /* a spawn's flags: its object's list (take_free_object_for_spawn), */
+#define SPAWN_LIST_1        0x04u        /* list 1 */
+
+static bool due_as_on_board(uint16_t spawn)
+{
+	return SPAWN(spawn)->kind == RIDE_HUB_KIND && (SPAWN(spawn)->flags & SPAWN_LIST) == SPAWN_LIST_1;
+}
+
 /* A spawn put in as the game's spawn_stage_objects puts it in (an object of its list free for it, or none), at its
    place moved by WIDE's sides ('wide'), else at the board's: the object, 0 if none was free */
 static uint16_t put_in_spawn(uint16_t spawn, bool wide, int side_left, int side_right, int picture_left,
@@ -1536,7 +1551,7 @@ static void put_in_sighted_spawns(int side_left, int side_right, int picture_lef
 			|| (uint16_t)(camera_x + 0x150u + (unsigned)side_right) < SPAWN(spawn)->x)
 			break;
 		if (difficulty < SPAWN(spawn)->level || (int8_t)SPAWN(spawn)->flags < 0 || comes_in_type(SPAWN(spawn)->kind)
-			|| screen_x - SIGHT_HALF >= OBJECT_RIGHT + side_right)
+			|| due_as_on_board(spawn) || screen_x - SIGHT_HALF >= OBJECT_RIGHT + side_right)
 			continue;    /* (not one that stands in the wider screen's sight) */
 		if ((spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right)) != 0u)
 		{
@@ -1621,7 +1636,8 @@ void spawn_stage_objects(void)
 		if (in_cemetery == 0u)
 		{
 			camera_position = camera_x;
-			spawn_edge = (uint16_t)(camera_position + 0x150u + (unsigned)side_right);    /* (WIDE: its right side) */
+			spawn_edge = (uint16_t)(camera_position + 0x150u
+				+ (due_as_on_board(spawn) ? 0u : (unsigned)side_right));    /* (WIDE: its right side) */
 			if (spawn_edge < SPAWN(spawn)->x)
 				break;
 		}

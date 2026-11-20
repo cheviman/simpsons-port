@@ -731,3 +731,20 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     the score ranking, and round again; A at 6000: the page at ATTRACT (6010), BACK, the menu on the TV with its song
     (6080), then ARCADE and the character choice (6300) and the game from its story (6600). STORY from the page at
     760: the choice under black, the story, and INTRO's page at STORY from 2300. Not checked on a device.
+- **20-11-2026, WIDE, stage 2's teacup ride** (a player's report, forwarded by Sebas: "If I am playing it in
+  widescreen mode, the enemies inside the cups (when you get the hammer) are not showing up. Changing the aspect ratio
+  to 4:3 fixes that"; two other players' videos showed it too): the ride's hub (list 1's type 0F,
+  teacup_goon_ride_update, unseen) puts in its three arms and the six goons riding them (type 1A, kind 88), and takes
+  itself off when its x is 1E0 or more (the board's right side, 0x61 past its edge). Its start puts it 40 on from where
+  the spawn list puts it: 1D0 on the board (spawned at 190, due at the camera's 150 past it); in WIDE, due 48 pixels
+  earlier as every spawn (spawn_stage_objects: the wider screen's right side), at 1C0, so at 200, and gone in its first
+  frame (stage 2's script, 16:9: put in at 4588, flags 00 that frame; the camera never held, no arm, no rider). Its
+  spawn is due as on the board now (due_as_on_board, list 1 type 0F; those after it in the list wait for it, as on
+  the board), and put_in_sighted_spawns leaves it to the list. Not done the other way (the function replaced with its
+  limit by WIDE's side, as krusty_balloon_fly_up): its definition is in src/ (objects/bank_entries.c), which changes
+  in the decompilation.
+  - Checked (stage 2's script): 16:9, the hub at 01D0 at 4661, its arms at 4662, the six goons from 4663 till 6111,
+    the cups full and turning in the frames (4760 on), the goons leaping off to fight; 20:9, the hub at 01CE at 4458
+    and its goons from 4460. --wide-hashes against the build before, 16:9: stage 2 the same till 4667, every other
+    stage and both bonus games the same in every frame. WIDE OFF, stage 2: the same state, picture and sound hashes as
+    before. Not checked on a device.
