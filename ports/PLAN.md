@@ -780,3 +780,10 @@ day: What was done, 15-11-2026).
   version 1.0.2 (CMakeLists.txt), docs/releases/v1.0.2.md, testing.md's list emptied; main fast-forwarded to testing,
   the tag v1.0.2 once the CI is green on that commit. The 25 scenarios identical after the merge. Not tried on a
   device.
+- **20-11-2026, 1.0.3** (Sebas: "Compita y push a teating y saca version"): the players' issues 23 (the arcade's
+  attract mode after the Konami logo), 24 (WIDE: a scene as 4:3 with black sides), 25 and 27 (Bart's shirt as he turns
+  at the ending; Maggie light blue in his arms, painted by Sebas, the video's keep masks), stage 2's teacup ride in
+  WIDE, a LAN game's end and its settings, and the README for players (console/PLAN.md); version 1.0.3
+  (CMakeLists.txt), docs/releases/v1.0.3.md, testing.md's list emptied; main fast-forwarded to testing, the tag v1.0.3
+  once the CI is green on that commit. The 25 scenarios identical. Issue 26 (stage 6 closing) not reproduced in 35
+  runs: waiting for the player's log. Not tried on a device.
