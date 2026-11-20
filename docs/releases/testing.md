@@ -9,6 +9,10 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **Slow devices** (the players' issue 21, the Switch): where a frame takes longer to draw than its time, the game
   and its sound keep their speed and some pictures are left out, instead of all of it slowing down with the sound
   breaking up. Not tried on a Switch: tell how it goes there, docked and handheld.
+- **CONTROLS on the Switch** (the players' issue 21): OPTIONS > CONTROLS is there, to choose each player's buttons
+  on their own controller: pick the player, a control, and press the button for it (a button of another controller
+  leaves it as it was); DEFAULTS puts them back. The Simpsons Arcade Game plays with the same ones. Not tried on a
+  Switch: tell whether the page shows the buttons you press by their own letters.
 - **BOSS RUSH's card** (the players' issue 18): BOSS RUSH, the boss's number, his stage and his name show on black
   while the game goes to each boss; with VSYNC ON the picture stood still on the character choice until the boss.
 - **The story before stage 1** (Sebas): one START skips all of it, straight to stage 1's card, its sound with it

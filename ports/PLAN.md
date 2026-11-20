@@ -272,7 +272,8 @@ never taken as tried.
 
 - [ ] ports/switch/switch.cmake (devkitPro): both games, two titles in homebrew's range, npdm, control.nacp, the icon;
       the Switch's 1280 x 720, WIDE 16:9 in the console; each Joy-Con or controller a player; no EXIT (HOME), no
-      CONTROLS nor the window's VIDEO lines. The .nro of each without a pack for the package's sd/.
+      window's VIDEO lines; CONTROLS since 19-11-2026 (What was done). The .nro of each without a pack for the
+      package's sd/.
       - [x] The build (13-11-2026): devkitPro's MSYS2 shell, `/opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake
             -S . -B build/switch -DSIMPSONS_REFERENCE_TOOLS=OFF -DCMAKE_DEPENDS_USE_COMPILER=FALSE
             -DSIMPSONS_BIN_DIR=build/bin-switch`, target `simpsons_switch_games` (26 s, 0 warnings): The Simpsons
@@ -721,3 +722,39 @@ day: What was done, 15-11-2026).
   - Not tried on a Switch. Not done: the drawing's own speed (70 % of a frame; the runtime's, in the
     decompilation's repository), the Switch's CPU boost, and the player's other request, custom button mapping on the
     Switch (OPTIONS has no CONTROLS on the devices).
+- **19-11-2026, CONTROLS on the Switch** (Sebas: "hagamos el mapeo de los botones tmb en switch"; the players' issue
+  21's other request, "custom button mapping"). The Switch's games already read controls.ini from the SD card and
+  held each player's controls by it (controls.c, controls_holds), and took a pressed button for the control CONTROLS
+  waits for (read_events, bind_button): the page alone was left out of OPTIONS with the devices' fixed controls
+  (SIMPSONS_HANDHELD), and its pictures had no file to come from.
+  - **SIMPSONS_DEVICE_CONTROLS** (switch.cmake, on the console's program): OPTIONS has CONTROLS (menu.c:
+    FIXED_CONTROLS is a device without it, the Anbernic and Android as before), "PRESS A BUTTON", and the page draws
+    no keys, each control's buttons side by side (draw_controls, up to three, CONSOLE_CONTROLS_NEXT_X apart). While it
+    waits, a button of another player's controller leaves the control as it was (bind_button): a device has no Escape
+    for it, and with the shown player's controller not there the page waited for ever.
+  - **The Switch's buttons by their letters** (button_prompts, `__SWITCH__`): devkitPro's SDL has the controller by
+    the buttons' places, an Xbox controller's (its mapping in libSDL2.a: "a:b1,b:b0,x:b3,y:b2", libnx's buttons in
+    their order, A B X Y, the rest as their bits: b6 L, b8 ZL, b10 +, b11 -), so SDL's A, the lower button, is the
+    Switch's B, its B the A, its X the Y and its Y the X; the sheet's white A B X Y, L, R, ZL, ZR, - and + (Kenney's
+    Input Prompts Pixel has them). So the default ATTACK is the Switch's B and JUMP its A: README-switch.txt said A
+    and B, put right.
+  - **The sheet in the executable** (ports/sdl2/prompts/embed.cmake, simpsons_prompts, SIMPSONS_PROMPTS_EMBEDDED:
+    load_prompts reads it with SDL_LoadBMP_RW): an .nro or an .nsp's executable has no file beside it; 627 KB more.
+  - **Two checks on a computer** (CMake options, never a player's build): SIMPSONS_PAD_CHECK, the games with
+    `--pads N` (SDL's virtual joysticks as game controllers, plugged in as the game starts) and --actions' `FRAME pad
+    BUTTON PLAYER` (SDL's names; a scripted run then reads the players' controls), and SIMPSONS_SWITCH_CHECK, The
+    Simpsons Mr. Plow Edition with the Switch's definitions, its buttons' pictures out of the executable, and --pads
+    (build/msvc-switch-check, build/bin-switch-check).
+  - Checked (the check build, SDL's dummy video, one virtual controller, the pictures written): OPTIONS with CONTROLS
+    first; the page with the d-pad's four, ATTACK B, JUMP A, START +, no keys; ATTACK chosen, "PRESS A BUTTON", SDL's
+    x pressed: ATTACK Y and B, and that button then opens CONTROLS from OPTIONS as the attack does (a opens it too,
+    b goes back); DOWN and the left shoulder: L and the d-pad; UP and the right trigger: ZR and the d-pad; START and
+    Back: - and +; DEFAULTS: as at first. PLAYER 2, who has no controller, a control chosen, then a button and a
+    trigger of player 1's: the page back, nothing bound. Built: MSVC (the games as before, PAD_CHECK off), the
+    Switch's two games (devkitPro, no warnings; simpsons_prompts_bmp in the ELF), GCC -Wall -Wextra on main.c and
+    menu.c in each configuration (the computers', the Switch's, the Anbernic's, with and without the checks).
+  - Not tried on a Switch: the page itself, whether the letters shown are the buttons' own (the mapping's reading
+    above), a controller plugged in while the page waits, a single Joy-Con held sideways. Not done: CONTROLS on the
+    Anbernic and Android (their buttons' pictures); Back (the Switch's -) still pauses whatever is bound to it. The
+    25 scenarios not run again: nothing of theirs changed here (the window's main.c, the console's menu.c, CMake),
+    and the checkout had the video's changes of another session in progress, with its own runs going.

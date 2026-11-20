@@ -9,9 +9,10 @@
 #
 # Included by CMakeLists.txt when the toolchain is the Switch's (aarch64-none-elf-cmake), as tmnt-port's. Both games
 # are the computers' builds with SDL2 for the Switch (switch-sdl2, devkitPro's portlibs): the picture fixed
-# (SIMPSONS_HANDHELD: the Switch's 1280 x 720, whole; SIMPSONS_SCREEN_WIDE: The Simpsons' WIDE 16:9), their controls
-# fixed (each Joy-Con or controller a player, up to four, the cabinet's four slots), and no EXIT in The Simpsons'
-# menu (SIMPSONS_SYSTEM_EXIT: HOME leaves it). A game reads the assets pack (simpsons.assets) from its own romfs,
+# (SIMPSONS_HANDHELD: the Switch's 1280 x 720, whole; SIMPSONS_SCREEN_WIDE: The Simpsons' WIDE 16:9), each Joy-Con
+# or controller a player, up to four, the cabinet's four slots, its buttons as The Simpsons' OPTIONS > CONTROLS binds
+# them (SIMPSONS_DEVICE_CONTROLS: the page with no keys, the Switch's buttons' pictures built in), and no EXIT in The
+# Simpsons' menu (SIMPSONS_SYSTEM_EXIT: HOME leaves it). A game reads the assets pack (simpsons.assets) from its own romfs,
 # which a computer fills with the player's (the .nsp, made there with the player's keys by Simpsons NSP; or, where
 # this build has the pack beside the executables, SIMPSONS_BIN_DIR/simpsons.assets, the .nro: the player's own,
 # never shared); with none there, from sdmc:/switch/simpsons-arcade/, where it takes the assets out of the player's
@@ -28,8 +29,9 @@
 set(SIMPSONS_SWITCH_TITLE_ID 050053494d500000)           # The Simpsons Mr. Plow Edition
 set(SIMPSONS_ARCADE_SWITCH_TITLE_ID 050053494d510000)    # The Simpsons Arcade Game
 
+# (SIMPSONS_DEVICE_CONTROLS: OPTIONS > CONTROLS, each player's own controller's buttons, the players' issue 21)
 target_compile_definitions(simpsons_console_program PUBLIC SIMPSONS_HANDHELD SIMPSONS_SCREEN_WIDE
-	SIMPSONS_SYSTEM_EXIT)
+	SIMPSONS_SYSTEM_EXIT SIMPSONS_DEVICE_CONTROLS)
 
 find_package(SDL2 CONFIG QUIET)
 if(TARGET SDL2::SDL2)
@@ -113,6 +115,8 @@ function(simpsons_switch_game target name folder title_id program)
 endfunction()
 
 simpsons_switch_game(simpsons_switch "The Simpsons Mr. Plow Edition" simpsons ${SIMPSONS_SWITCH_TITLE_ID} simpsons_console_game)
+# (CONTROLS' pictures in the executable: neither the .nro nor the .nsp has a file beside it)
+target_link_libraries(simpsons_switch PRIVATE simpsons_prompts)
 simpsons_switch_game(simpsons_arcade_switch "The Simpsons Arcade Game" simpsons-arcade ${SIMPSONS_ARCADE_SWITCH_TITLE_ID}
 	${SIMPSONS_WINDOW_PROGRAM})
 if(NOT EXISTS ${SIMPSONS_SWITCH_PACK})

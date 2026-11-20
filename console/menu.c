@@ -33,7 +33,9 @@
  *
  *    On the devices (as tmnt-port's): no EXIT where the system leaves the game (SIMPSONS_SYSTEM_EXIT: the Switch's
  *    HOME), and no CONTROLS where the device's controls are fixed (SIMPSONS_HANDHELD), whose VIDEO has PIXELS,
- *    INTEGER SCALE and FPS alone: its screen is the window, WIDE as it is.
+ *    INTEGER SCALE and FPS alone: its screen is the window, WIDE as it is. A device whose players bind their game
+ *    controllers' buttons has CONTROLS (SIMPSONS_DEVICE_CONTROLS: the Switch, the players' issue 21), its page the
+ *    computers' with no keys.
  */
 #include "console_internal.h"
 
@@ -78,14 +80,20 @@ enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_INTRO, MENU_OPTIONS, MENU_EXIT,
 #endif
 enum { PLOW_FREE_PLAY, PLOW_BOSS_RUSH, PLOW_BONUS_GAMES, PLOW_FRANK_GRIMES, PLOW_BACK, PLOW_ITEMS };    /* (the
 	modes' order: MODE_FREE_PLAY on, console.c's way back to the page) */
-#ifdef SIMPSONS_HANDHELD
+#if defined(SIMPSONS_HANDHELD) && !defined(SIMPSONS_DEVICE_CONTROLS)
+#define FIXED_CONTROLS    /* (no CONTROLS in OPTIONS) */
+#endif
+#ifdef FIXED_CONTROLS
 enum { OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_DEMO_SOUND, OPTION_SCREEN, OPTION_VIDEO,
 	OPTION_VOLUME, OPTION_SOUND, OPTION_BACK, OPTION_ITEMS, OPTION_CONTROLS = 100 };
-enum { VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_FPS, VIDEO_BACK, VIDEO_ITEMS, VIDEO_WINDOW = 100, VIDEO_FULL_SCREEN,
-	VIDEO_WIDE, VIDEO_VSYNC };
 #else
 enum { OPTION_CONTROLS, OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_DEMO_SOUND, OPTION_SCREEN,
 	OPTION_VIDEO, OPTION_VOLUME, OPTION_SOUND, OPTION_BACK, OPTION_ITEMS };
+#endif
+#ifdef SIMPSONS_HANDHELD
+enum { VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_FPS, VIDEO_BACK, VIDEO_ITEMS, VIDEO_WINDOW = 100, VIDEO_FULL_SCREEN,
+	VIDEO_WIDE, VIDEO_VSYNC };
+#else
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_WIDE, VIDEO_VSYNC, VIDEO_FPS,
 	VIDEO_BACK, VIDEO_ITEMS };
 #endif
@@ -108,13 +116,16 @@ static const char *const plow_about[PLOW_ITEMS][2] = {
 	{ "ONE PLAYER, THE WHOLE GAME,", "AGAINST WHAT FOUR WOULD FACE" },
 	{ "", "" },
 };
-#ifdef SIMPSONS_HANDHELD
+#ifdef FIXED_CONTROLS
 static const char *const option_items[OPTION_ITEMS] = { "DIFFICULTY", "LIVES", "CONTINUES", "DEMO SOUND", "SCREEN",
 	"VIDEO", "VOLUME", "SOUND", "BACK" };
-static const char *const video_items[VIDEO_ITEMS] = { "PIXELS", "INTEGER SCALE", "FPS", "BACK" };
 #else
 static const char *const option_items[OPTION_ITEMS] = { "CONTROLS", "DIFFICULTY", "LIVES", "CONTINUES", "DEMO SOUND",
 	"SCREEN", "VIDEO", "VOLUME", "SOUND", "BACK" };
+#endif
+#ifdef SIMPSONS_HANDHELD
+static const char *const video_items[VIDEO_ITEMS] = { "PIXELS", "INTEGER SCALE", "FPS", "BACK" };
+#else
 static const char *const video_items[VIDEO_ITEMS] = { "WINDOW", "FULL SCREEN", "PIXELS", "INTEGER SCALE", "WIDE",
 	"VSYNC", "FPS", "BACK" };
 #endif
@@ -862,7 +873,7 @@ static void options_overlay(void)
 	char value[40];
 
 	page_box("OPTIONS", OPTION_ITEMS);
-#ifndef SIMPSONS_HANDHELD
+#ifndef FIXED_CONTROLS
 	option_line(option_items, OPTION_CONTROLS, NULL);
 #endif
 	option_line(option_items, OPTION_DIFFICULTY, difficulties[console_settings.game_difficulty]);
@@ -1017,7 +1028,12 @@ static void controls_overlay(void)
 	{
 		control_place(controls_waiting, &x, &y);
 		draw_game_letters(target, x, y, 1, CHOSEN_COLOUR, control_names[controls_waiting]);
+#ifdef SIMPSONS_DEVICE_CONTROLS
+		draw_game_letters_centred(target, CONTROLS_BOTTOM_Y, 1, ITEM_COLOUR, "PRESS A BUTTON");    /* (the shown
+			player's own controller's; another's leaves the control as it was: the port's) */
+#else
 		draw_game_letters_centred(target, CONTROLS_BOTTOM_Y, 1, ITEM_COLOUR, "PRESS A KEY OR BUTTON");
+#endif
 		return;
 	}
 	snprintf(value, sizeof(value), "< PLAYER %d >", controls_player + 1);    /* (LEFT and RIGHT: players 1-4) */

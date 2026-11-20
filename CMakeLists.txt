@@ -316,6 +316,28 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_SWITCH AND NOT SIMPSONS_ANBERNIC)
 	target_compile_definitions(simpsons_controller_db INTERFACE SIMPSONS_CONTROLLER_DB)
 endif()
 
+# CONTROLS' pictures (ports/sdl2/prompts: Kenney's Input Prompts Pixel, CC0) built into the games that have no file
+# beside them: the Switch's, an .nro or an .nsp's executable alone. SIMPSONS_PROMPTS_EMBEDDED to whatever links it:
+# main.c reads the sheet from there. And two checks on a computer, never a player's build: SIMPSONS_PAD_CHECK, the
+# games with --pads (SDL's virtual game controllers, and --actions' "pad": CONTROLS binds a controller's buttons with
+# none plugged in), and SIMPSONS_SWITCH_CHECK, The Simpsons Mr. Plow Edition as the Switch has it (its menus, WIDE
+# 16:9, CONTROLS with the Switch's buttons' pictures out of the executable), with --pads
+option(SIMPSONS_PAD_CHECK "Build the games with --pads, SDL's virtual game controllers, to check CONTROLS" OFF)
+option(SIMPSONS_SWITCH_CHECK "Build The Simpsons Mr. Plow Edition as the Switch's, to check it on a computer" OFF)
+if(SIMPSONS_WINDOW_PROGRAM AND (SIMPSONS_SWITCH OR SIMPSONS_SWITCH_CHECK))
+	set(SIMPSONS_PROMPTS_C ${CMAKE_BINARY_DIR}/prompts_sheet.c)
+	add_custom_command(OUTPUT ${SIMPSONS_PROMPTS_C}
+		COMMAND ${CMAKE_COMMAND} -DSHEET=${CMAKE_SOURCE_DIR}/ports/sdl2/prompts/input_prompts.bmp
+			-DOUT=${SIMPSONS_PROMPTS_C} -P ${CMAKE_SOURCE_DIR}/ports/sdl2/prompts/embed.cmake
+		DEPENDS ${CMAKE_SOURCE_DIR}/ports/sdl2/prompts/input_prompts.bmp
+			${CMAKE_SOURCE_DIR}/ports/sdl2/prompts/embed.cmake
+		COMMENT "CONTROLS' pictures into the executable"
+		VERBATIM)
+	add_library(simpsons_prompts STATIC ${SIMPSONS_PROMPTS_C})
+	set_target_properties(simpsons_prompts PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	target_compile_definitions(simpsons_prompts INTERFACE SIMPSONS_PROMPTS_EMBEDDED)
+endif()
+
 # The games in a window (ports/sdl2): The Simpsons Arcade Game, the decompiled program where src/ has it
 # (SIMPSONS_WINDOW_PROGRAM), else the translation scaffold; and The Simpsons, the console version. SDL2 from the
 # system, or on Windows the development package unpacked in build/downloads/sdl2, its library beside the executables;
@@ -427,6 +449,9 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_DEVICE)
 				target_sources(${target} PRIVATE ports/sdl2/touch.c)
 				target_compile_definitions(${target} PRIVATE SIMPSONS_TOUCH SIMPSONS_TOUCH_CHECK)
 			endif()
+			if(SIMPSONS_PAD_CHECK OR SIMPSONS_SWITCH_CHECK)
+				target_compile_definitions(${target} PRIVATE SIMPSONS_PAD_CHECK)
+			endif()
 			if(SIMPSONS_ICON_RC)
 				target_sources(${target} PRIVATE ${SIMPSONS_ICON_RC})
 			endif()
@@ -467,6 +492,13 @@ if(SIMPSONS_WINDOW_PROGRAM AND NOT SIMPSONS_DEVICE)
 		# buttons with Kenney's Input Prompts Pixel (CC0, ports/sdl2/prompts)
 		if(TARGET simpsons_console_game)
 			simpsons_window(simpsons_console "The Simpsons Mr. Plow Edition" io.github.cheviman.simpsons simpsons_console_game)
+			if(SIMPSONS_SWITCH_CHECK)
+				# (ports/switch/switch.cmake's definitions, and the Switch's pictures of the buttons)
+				target_compile_definitions(simpsons_console_program PUBLIC SIMPSONS_HANDHELD SIMPSONS_SCREEN_WIDE
+					SIMPSONS_SYSTEM_EXIT SIMPSONS_DEVICE_CONTROLS)
+				target_compile_definitions(simpsons_console PRIVATE SIMPSONS_SWITCH_PROMPTS)
+				target_link_libraries(simpsons_console PRIVATE simpsons_prompts)
+			endif()
 		endif()
 
 		# The devices' makers (tmnt-port's), which the player runs on a computer with the player's own ROM set: its

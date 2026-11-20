@@ -40,9 +40,12 @@ What either way makes from your ROM set is yours alone: never share it.
 Playing
 -------
 Each controller is a player, up to four (player 1 is Marge, 2 Homer, 3 Bart, 4 Lisa): the stick or the d-pad
-moves, A attacks, B jumps, + is START (and pauses The Simpsons Mr. Plow Edition); on The Simpsons Arcade Game,
-minus puts a coin in, and a coin and A bring the player in. HOME leaves the game. The games keep their
-settings and their logs (simpsons.log, simpsons-arcade.log) on the SD card, in switch/simpsons-arcade/.
+moves, B (the lower button) attacks, A (the right one) jumps, + is START (and pauses The Simpsons Mr. Plow
+Edition); on The Simpsons Arcade Game, minus puts a coin in, and a coin and the attack bring the player in.
+HOME leaves the game. The Simpsons Mr. Plow Edition's OPTIONS > CONTROLS changes each player's buttons: choose
+the player, then a control, and press the button for it on that player's own controller (DEFAULTS puts them
+back); The Simpsons Arcade Game plays with the same ones. The games keep their settings, the controls
+(controls.ini) and their logs (simpsons.log, simpsons-arcade.log) on the SD card, in switch/simpsons-arcade/.
 
 From 1.0.0: 1.0.0 used switch/simpsons/, which The Simpsons: Hit & Run's port uses too. At their first start
 the games copy their own files from there (simpsons.zip, simpsons.assets, the settings, the high scores, the

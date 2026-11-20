@@ -83,7 +83,9 @@
  *    as a slow device's, and says on the standard error every 600 frames how the pace held: the frames a second (the
  *    board's 59.19), how many were drawn and shown, and how often the sound ran out; --no-vsync runs it without
  *    VSYNC, as the devices' builds do (their screens keep the system's refresh), so that the two together are a slow
- *    device's frames on a computer. --hashes, --video-hashes and --sound-hashes write for each
+ *    device's frames on a computer. In a check's build (SIMPSONS_PAD_CHECK, CMake's option), --pads N plugs in N
+ *    game controllers of SDL's own making and --actions' "FRAME pad BUTTON PLAYER" presses their buttons: CONTROLS'
+ *    bindings with no controller there. --hashes, --video-hashes and --sound-hashes write for each
  *    frame the hashes kref writes, so a run in the window compares with the reference frame by frame. --service holds
  *    the test switch all along (from the start: the board then resets its EEPROM). --video-dump writes the frames
  *    FRAME ... as the window shows them (the console's picture over them) into DIR, frame_FRAME.bmp. In the console
@@ -472,6 +474,22 @@ static const prompt key_prompts[] = {
 	{ SDL_SCANCODE_PAUSE, 7, 25, 2 },
 };
 
+#if defined(__SWITCH__) || defined(SIMPSONS_SWITCH_PROMPTS)
+/* The Switch's buttons by the letters on them. devkitPro's SDL has its game controller by the buttons' places, an
+   Xbox controller's (its mapping: "a:b1,b:b0,x:b3,y:b2", libnx's buttons in their order, A B X Y): SDL's A, the lower
+   one, is the Switch's B, its B the Switch's A, its X the Y and its Y the X; the shoulders L and R, the triggers ZL
+   and ZR, Back and Start - and +. The sheet's white buttons (SIMPSONS_SWITCH_PROMPTS: a computer's check of them) */
+static const prompt button_prompts[] = {
+	{ SDL_CONTROLLER_BUTTON_A, 0, 14, 1 }, { SDL_CONTROLLER_BUTTON_B, 0, 13, 1 },
+	{ SDL_CONTROLLER_BUTTON_X, 0, 16, 1 }, { SDL_CONTROLLER_BUTTON_Y, 0, 15, 1 },
+	{ SDL_CONTROLLER_BUTTON_DPAD_UP, 1, 1, 1 }, { SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 1, 2, 1 },
+	{ SDL_CONTROLLER_BUTTON_DPAD_DOWN, 1, 3, 1 }, { SDL_CONTROLLER_BUTTON_DPAD_LEFT, 1, 4, 1 },
+	{ SDL_CONTROLLER_BUTTON_BACK, 20, 13, 1 }, { SDL_CONTROLLER_BUTTON_START, 20, 14, 1 },
+	{ SDL_CONTROLLER_BUTTON_LEFTSHOULDER, 18, 15, 1 }, { SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, 18, 16, 1 },
+	{ CONTROL_LEFT_TRIGGER, 18, 13, 1 }, { CONTROL_RIGHT_TRIGGER, 18, 14, 1 },
+	{ SDL_CONTROLLER_BUTTON_LEFTSTICK, 12, 16, 1 }, { SDL_CONTROLLER_BUTTON_RIGHTSTICK, 14, 16, 1 },
+};
+#else
 static const prompt button_prompts[] = {
 	{ SDL_CONTROLLER_BUTTON_A, 0, 4, 1 }, { SDL_CONTROLLER_BUTTON_B, 0, 5, 1 },
 	{ SDL_CONTROLLER_BUTTON_X, 0, 6, 1 }, { SDL_CONTROLLER_BUTTON_Y, 0, 7, 1 },
@@ -483,19 +501,33 @@ static const prompt button_prompts[] = {
 	{ SDL_CONTROLLER_BUTTON_LEFTSTICK, 12, 16, 1 }, { SDL_CONTROLLER_BUTTON_RIGHTSTICK, 14, 16, 1 },
 	{ SDL_CONTROLLER_BUTTON_GUIDE, 18, 2, 1 }, { SDL_CONTROLLER_BUTTON_MISC1, 18, 6, 1 },
 };
+#endif
 
 #define PROMPT_SIZE  16
 #define PROMPT_CLEAR 0xFFFF00FFu    /* magenta: the sheet's see-through */
 
 static SDL_Surface *prompt_sheet;    /* input_prompts.bmp beside the executable, as ARGB */
 
+#ifdef SIMPSONS_PROMPTS_EMBEDDED
+/* (the sheet in the executable, ports/sdl2/prompts/embed.cmake: the Switch's games, an .nro or an .nsp's, have no
+   file beside them) */
+extern const unsigned char simpsons_prompts_bmp[];
+extern const size_t simpsons_prompts_bmp_size;
+#endif
+
 static void load_prompts(const char *base)
 {
 	char path[1100];
 	SDL_Surface *loaded;
 
+#ifdef SIMPSONS_PROMPTS_EMBEDDED
+	(void)base;
+	snprintf(path, sizeof(path), "The executable's input prompts");
+	loaded = SDL_LoadBMP_RW(SDL_RWFromConstMem(simpsons_prompts_bmp, (int)simpsons_prompts_bmp_size), 1);
+#else
 	snprintf(path, sizeof(path), "%sinput_prompts.bmp", base ? base : "");
 	loaded = SDL_LoadBMP(path);
+#endif
 	if (!loaded)
 	{
 		fprintf(stderr, "%s cannot be read: CONTROLS shows the names alone\n", path);
@@ -545,6 +577,15 @@ static void draw_controls(console_picture *into)
 
 		if (!console_controls_place(control, &x, &y))
 			return;
+#ifdef SIMPSONS_DEVICE_CONTROLS
+		/* (a device's page: no keys, the control's buttons side by side) */
+		for (int button = 0; button < CONTROL_BUTTONS; button++)
+			if ((icon = find_prompt(button_prompts, SDL_arraysize(button_prompts), bindings[control].buttons[button]))
+				!= NULL)
+				draw_prompt(into, icon, x + shown++ * CONSOLE_CONTROLS_NEXT_X, y);
+		(void)first;
+		continue;
+#endif
 		for (int key = 0; key < CONTROL_KEYS && shown < 2; key++)
 		{
 			icon = find_prompt(key_prompts, SDL_arraysize(key_prompts), bindings[control].keys[key]);
@@ -1304,6 +1345,12 @@ static void bind_button(SDL_JoystickID which, SDL_GameControllerButton pressed)
 		controls_bind_button(player, console_controls_waiting(), pressed);
 		console_controls_bound();
 	}
+#ifdef SIMPSONS_DEVICE_CONTROLS
+	else
+		console_controls_bound();    /* (another player's controller: the control as it was. A device has no Escape
+		                                for it, and the shown player may have no controller: the page would wait for
+		                                ever) */
+#endif
 }
 #endif
 
@@ -1444,8 +1491,65 @@ static struct
 	int kind;        /* ACTION_*, KIND_PAUSE or KIND_DUMP */
 	int player;
 	bool own;        /* (a player given: up ... back are that player's stick and buttons, not the menus' keys) */
+	int button;      /* (KIND_PAD's: the game controller's button, or a trigger as controls.h has them) */
 } actions[MAX_ACTIONS];
 static size_t action_count, next_action;
+
+#ifdef SIMPSONS_PAD_CHECK
+/* --pads N (a computer's check, SIMPSONS_PAD_CHECK: never a player's build): N game controllers of SDL's own making
+   (its virtual joysticks), plugged in as the game starts, the players' in turn; and --actions' "FRAME pad BUTTON
+   PLAYER" presses that button of the player's controller for PAD_FRAMES frames (SDL's names: a, b, x, y, back, start,
+   leftshoulder, rightshoulder, leftstick, rightstick, dpup, dpdown, dpleft, dpright, lefttrigger, righttrigger). So
+   CONTROLS binds a controller's buttons, and the port reads them, with none plugged in: with --pads a scripted run
+   reads the players' controls too (read_players) */
+#define KIND_PAD        (ACTIONS + 2)
+#define PAD_FRAMES      3
+
+static int check_pads;
+static struct
+{
+	int button, frames;    /* the button held and the frames it has left */
+	bool rested;           /* its triggers let go: SDL's virtual axes start halfway */
+} pads[PLAYERS];
+
+static void pad_set(int player, int button, bool down)
+{
+	SDL_Joystick *joystick = controllers[player] ? SDL_GameControllerGetJoystick(controllers[player]) : NULL;
+
+	if (!joystick)
+		fprintf(stderr, "pad: player %d has no game controller\n", player + 1);
+	else if (button == CONTROL_LEFT_TRIGGER || button == CONTROL_RIGHT_TRIGGER)
+		SDL_JoystickSetVirtualAxis(joystick, button == CONTROL_LEFT_TRIGGER ? SDL_CONTROLLER_AXIS_TRIGGERLEFT
+			: SDL_CONTROLLER_AXIS_TRIGGERRIGHT, down ? SDL_JOYSTICK_AXIS_MAX : SDL_JOYSTICK_AXIS_MIN);
+	else
+		SDL_JoystickSetVirtualButton(joystick, button, down ? 1 : 0);
+}
+
+/* Each frame: the buttons held their frames let go, a controller's triggers at rest once it is there */
+static void pads_frame(void)
+{
+	for (int player = 0; player < PLAYERS; player++)
+	{
+		if (controllers[player] && !pads[player].rested && check_pads > 0)
+		{
+			pad_set(player, CONTROL_LEFT_TRIGGER, false);
+			pad_set(player, CONTROL_RIGHT_TRIGGER, false);
+			pads[player].rested = true;
+		}
+		if (pads[player].frames > 0 && --pads[player].frames == 0)
+			pad_set(player, pads[player].button, false);
+	}
+}
+
+static void pad_press(int player, int button)
+{
+	if (pads[player].frames > 0)
+		pad_set(player, pads[player].button, false);
+	pads[player].button = button;
+	pads[player].frames = PAD_FRAMES;
+	pad_set(player, button, true);
+}
+#endif
 
 static const char *load_actions(const char *path)
 {
@@ -1462,6 +1566,32 @@ static const char *load_actions(const char *path)
 	{
 		int kind, read;
 
+#ifdef SIMPSONS_PAD_CHECK
+		{
+			char button[32];
+
+			if (line[0] != '#' && (read = sscanf(line, "%llu %31s %31s %d", &frame, name, button, &player)) >= 3
+				&& strcmp(name, "pad") == 0)
+			{
+				const int which = strcmp(button, "lefttrigger") == 0 ? (int)CONTROL_LEFT_TRIGGER
+					: (strcmp(button, "righttrigger") == 0 ? (int)CONTROL_RIGHT_TRIGGER
+						: (int)SDL_GameControllerGetButtonFromString(button));
+
+				if (which < 0)
+				{
+					fclose(input);
+					return "A pad's button is not one of SDL's names (a, b, x, y, back, start, leftshoulder...).";
+				}
+				actions[action_count].frame = frame;
+				actions[action_count].kind = KIND_PAD;
+				actions[action_count].player = read == 4 && player >= 1 && player <= PLAYERS ? player - 1 : 0;
+				actions[action_count].own = true;
+				actions[action_count].button = which;
+				action_count++;
+				continue;
+			}
+		}
+#endif
 		if (line[0] == '#' || (read = sscanf(line, "%llu %31s %d", &frame, name, &player)) < 2)
 			continue;
 		for (kind = 0; kind < ACTIONS + 2 && strcmp(name, names[kind]) != 0; kind++)
@@ -1489,6 +1619,9 @@ static void scripted_actions(uint8_t players[PLAYERS], uint8_t *starts)
 		SIMPSONS_ATTACK, SIMPSONS_JUMP, 0 };
 	const uint64_t frame = frames_before + simpsons_board.frame;
 
+#ifdef SIMPSONS_PAD_CHECK
+	pads_frame();
+#endif
 	while (next_action < action_count && actions[next_action].frame < frame)
 		next_action++;    /* (a pause's that it did not take) */
 	while (next_action < action_count && actions[next_action].frame == frame)
@@ -1497,6 +1630,13 @@ static void scripted_actions(uint8_t players[PLAYERS], uint8_t *starts)
 		const bool own = actions[next_action].own;
 
 		next_action++;
+#ifdef SIMPSONS_PAD_CHECK
+		if (kind == KIND_PAD)
+		{
+			pad_press(player, actions[next_action - 1].button);
+			continue;
+		}
+#endif
 		if (kind == KIND_PAUSE)
 		{
 			if (console_can_pause())
@@ -1580,12 +1720,17 @@ static void device_controls(int player, uint8_t *pressed, bool *start)
 static void read_players(uint8_t players[PLAYERS], uint8_t *starts)
 {
 	const bool waiting = console_controls_waiting() >= 0;
+#ifdef SIMPSONS_PAD_CHECK
+	const bool unread = scripted && check_pads == 0;    /* (--pads: its controllers' buttons are the players') */
+#else
+	const bool unread = scripted;
+#endif
 
 	*starts = 0;
 	for (int player = 0; player < PLAYERS; player++)
 	{
-		bool start = !scripted && controls_holds(player, controllers[player], CONTROL_START);
-		uint8_t pressed = waiting || scripted ? 0 : player_pressed(player);
+		bool start = !unread && controls_holds(player, controllers[player], CONTROL_START);
+		uint8_t pressed = waiting || unread ? 0 : player_pressed(player);
 
 #if defined(SIMPSONS_TOUCH) || defined(__ANDROID__)
 		if (!scripted)
@@ -1602,9 +1747,15 @@ static void read_controls(void)
 {
 	uint8_t players[PLAYERS], starts = 0;
 
+#ifdef SIMPSONS_PAD_CHECK
+	const bool from_script = script && check_pads == 0;    /* (--pads: its controllers', read_players) */
+#else
+	const bool from_script = script != NULL;
+#endif
+
 	if (console_controls_defaults())
 		controls_defaults(console_controls_player());
-	if (script)
+	if (from_script)
 		for (int player = 0; player < PLAYERS; player++)
 			players[player] = (uint8_t)~simpsons_board.players[player];    /* (the script's, on the board) */
 	else
@@ -3103,6 +3254,14 @@ int main(int argc, char **argv)
 			slow_ms = atoi(argv[++index]);
 		else if (strcmp(argv[index], "--no-vsync") == 0)
 			no_vsync = true;
+#if defined(SIMPSONS_PAD_CHECK) && defined(SIMPSONS_CONSOLE)
+		else if (strcmp(argv[index], "--pads") == 0 && index + 1 < argc)
+		{
+			const int count = atoi(argv[++index]);    /* (by itself: SDL_clamp is a macro) */
+
+			check_pads = SDL_clamp(count, 0, PLAYERS);
+		}
+#endif
 		else if (strcmp(argv[index], "--assets") == 0 && index + 1 < argc)
 			assets = argv[++index];
 		else if (strcmp(argv[index], "--video-dir") == 0 && index + 1 < argc)
@@ -3215,6 +3374,20 @@ int main(int argc, char **argv)
 		fail(message);
 	}
 	fprintf(stderr, "Game controllers: %d mappings\n", SDL_GameControllerNumMappings());
+#if defined(SIMPSONS_PAD_CHECK) && defined(SIMPSONS_CONSOLE)
+	for (int pad = 0; pad < check_pads; pad++)
+	{
+		/* (plugged in: controller_added, as any other) */
+		const int index = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, SDL_CONTROLLER_AXIS_MAX,
+			SDL_CONTROLLER_BUTTON_MAX, 0);
+
+		if (index < 0)
+			fprintf(stderr, "--pads: %s\n", SDL_GetError());
+		else
+			fprintf(stderr, "--pads: SDL's virtual joystick %d, %s\n", index,
+				SDL_IsGameController(index) ? "a game controller" : "no game controller");
+	}
+#endif
 #if defined(__APPLE__) && TARGET_OS_IOS
 	SDL_AddEventWatch(ios_app_events, NULL);    /* (the background, as it comes: nothing drawn there) */
 #endif

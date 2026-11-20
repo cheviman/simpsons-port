@@ -195,6 +195,8 @@ enum
 bool console_controls_place(int control, int *x, int *y);
 #define CONSOLE_CONTROLS_SECOND_X   36     /* (room for a key two tiles wide, Enter or Space) */
 #define CONSOLE_CONTROLS_BUTTON_X   76
+#define CONSOLE_CONTROLS_NEXT_X     18     /* (a device's page, SIMPSONS_DEVICE_CONTROLS: no keys, the control's
+                                              buttons side by side from the first key's place) */
 
 /* The player whose controls CONTROLS shows (0-3) */
 int console_controls_player(void);
