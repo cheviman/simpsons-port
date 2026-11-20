@@ -2,17 +2,16 @@
 
 <a href="https://recomplauncher.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
 
-Konami's 1991 arcade game *The Simpsons* as a native game for computers, the Nintendo Switch, Android, iPhone and
-iPad, and Anbernic's handhelds, built on its decompilation,
-[simpsons-decomp](https://github.com/cheviman/simpsons-decomp): both of the game's programs (the Konami 053248's
-and the Z80's) in C, checked frame by frame against MAME in state, picture and sound. Two games come out of it:
+Konami's 1991 arcade game *The Simpsons*, for up to four players, as a game of its own on your computer (Windows,
+Linux, macOS, the Steam Deck), the Nintendo Switch, Android, iPhone and iPad, and Anbernic's handhelds. Not an
+emulator: the arcade's own program, decompiled into C ([how it's made](#how-its-made)). Every download has two games:
 
-- **The Simpsons Arcade Game**: the arcade game as it is: coins, the test mode, four players.
-- **The Simpsons Mr. Plow Edition**: the console version, the arcade game made for playing at home.
+- **The Simpsons Mr. Plow Edition**: the arcade game made for playing at home: a menu, options, widescreen, save
+  states, new modes and play over your local network ([what's in it](#the-simpsons-mr-plow-edition)).
+- **The Simpsons Arcade Game**: the arcade game as it was: coins, the test mode, four players.
 
-This repository contains no game data: you bring your own ROM set (MAME's `simpsons`, 4 Players World, set 1), and
-the game takes its assets out of it. Only that set: MAME's other sets of the game (the 2 Players ones, the Japanese
-and Asian ones) have program ROMs of their own, which the decompilation does not cover, and the game refuses them.
+**You bring the game itself**: your own `simpsons.zip`, MAME's ROM set of *The Simpsons* (4 Players World, set 1).
+Nothing of the game is in this repository or in its downloads.
 
 <p align="center">
   <img src="docs/screenshots/presentation.png" width="32%" alt="The family walks across the game's big Konami logo">
@@ -29,33 +28,53 @@ and Asian ones) have program ROMs of their own, which the decompilation does not
 
 ## Playing it
 
-Download the package for Windows, Linux or macOS from the
-[releases](https://github.com/cheviman/simpsons-port/releases). Keep `simpsons.zip` beside the game, or drop it on
-its window when it asks: the first time, it takes the assets out of it (`simpsons.assets`, a fraction of a second),
-and plays from them from then on (`simpsons.7z`, the set packed by 7-Zip, works too). A shortcut or a launcher can
-name it instead, with `--game PATH` (the .zip, the .7z, or its folder); `--prepare` makes the assets with no window and
-ends. RecompLauncher sets The Simpsons Mr. Plow Edition up
-this way, from the release's `recomplauncher.json`, and shows OPTIONS' settings on the game's page.
+There is nothing to install, and no Python or command line: those are only for
+[building it from source](#building-it-from-source).
 
-Each device has a package of its own, its games without assets, beside the tools that make your own of them on a
-computer (for Windows, macOS and Linux):
+1. Download the package for your system from the
+   [latest release](https://github.com/cheviman/simpsons-port/releases/latest): `simpsons-windows-x64.zip`,
+   `simpsons-linux-x64.tar.gz` or `simpsons-macos-universal.zip` (on macOS The Simpsons Arcade Game comes in a
+   package of its own, `simpsons-arcade-macos-universal.zip`).
+2. Unzip it anywhere.
+3. Put your `simpsons.zip` beside the games, or drop it on the game's window when it asks for it.
+4. Double-click **The Simpsons Mr. Plow Edition**.
 
-- **Nintendo Switch** (`simpsons-switch.zip`): `The Simpsons Mr. Plow Edition.nro` and `The Simpsons Arcade Game.nro` for the Homebrew
-  Menu, with `simpsons.zip` in `/switch/simpsons-arcade/` on the SD card; or Simpsons NSP makes `The Simpsons Mr. Plow Edition.nsp` and
-  `The Simpsons Arcade Game.nsp` for the HOME menu.
-- **Android** (`simpsons-android.zip`): Simpsons APK makes `The Simpsons Mr. Plow Edition.apk` and `The Simpsons Arcade Game.apk` on your
-  computer, with the assets of your `simpsons.zip` inside, signed with a key of yours
-  ([ports/android/apk](ports/android/apk/README.md)). Phones, tablets, foldables, and TVs with Android TV or Google
-  TV (in the TV's apps, with a banner; the APKs carry 32-bit ARM too, for the Chromecast with Google TV).
+The first time, the game takes what it needs out of your ROM set in under a second; from then on it just plays.
+
+- **macOS**: the games are not signed with a certificate. The first time, open one with a right click and Open (on
+  macOS 15 and later: System Settings, Privacy & Security, Open Anyway).
+- **Steam Deck, or any Linux**: in desktop mode, put `simpsons.zip` in the folder and run `install.sh`: both games
+  go to the applications menu and to Steam, so they show up in Game Mode. `uninstall.sh` takes them out again.
+- **A launcher**: [RecompLauncher](https://recomplauncher.com) sets The Simpsons Mr. Plow Edition up for you.
+
+Only that ROM set works: MAME's other sets of the game (the 2 Players ones, the Japanese and Asian ones) have
+program ROMs of their own, which the decompilation does not cover, and the game refuses them. `simpsons.7z`, the set
+packed by 7-Zip, works too.
+
+### On other devices
+
+Each device has a download of its own. On most of them a small tool, run once on your computer (Windows, macOS or
+Linux), makes the game with your ROM set inside, and you copy what it makes to the device. The `README.txt` in each
+download walks you through it.
+
+- **Android** (`simpsons-android.zip`): phones, tablets, foldables, and TVs with Android TV or Google TV (the
+  Chromecast with Google TV too). Put your `simpsons.zip` beside **Simpsons APK** and double-click it: it makes
+  `The Simpsons Mr. Plow Edition.apk` and `The Simpsons Arcade Game.apk`, signed with a key of your own. Copy them
+  to the device and open them there. Make the next updates on the same computer: each one then installs over the
+  last and keeps your settings and scores ([more](ports/android/apk/README.md)).
+- **Nintendo Switch** (`simpsons-switch.zip`, a console with homebrew): `The Simpsons Mr. Plow Edition.nro` and
+  `The Simpsons Arcade Game.nro` for the Homebrew Menu, with `simpsons.zip` in `/switch/simpsons-arcade/` on the SD
+  card; or **Simpsons NSP** makes `The Simpsons Mr. Plow Edition.nsp` and `The Simpsons Arcade Game.nsp` for the
+  HOME menu.
 - **iPhone and iPad** (`simpsons-ios.zip`): unsigned `.ipa` files to install with AltStore, SideStore or
-  Sideloadly, and `simpsons.zip` put in the game's folder with the Files app or the Finder. They are not, and will
-  not be, on the App Store.
+  Sideloadly, then `simpsons.zip` in the game's folder with the Files app or the Finder. They are not, and will not
+  be, on the App Store.
 - **Anbernic's H700 handhelds** (`simpsons-anbernic.zip`, the stock firmware): the folder for PORTS, with
-  `simpsons.zip` in `PORTS/simpsons/`; or Simpsons Anbernic makes it with the assets inside.
+  `simpsons.zip` in `PORTS/simpsons/`; or **Simpsons Anbernic** makes it with the game inside.
 
-What a tool makes has the game's data in it: it is yours alone, never share it. Each package's `README.txt` says how.
+What a tool makes has the game in it: it is yours alone, never share it.
 
-## The console version
+## The Simpsons Mr. Plow Edition
 
 - **The Konami presentation**: the family walks across the game's own big Konami logo, then Bart has a word.
 - **The menu on the TV**: the family's TV from the attract mode, the title on its screen.
@@ -104,9 +123,23 @@ What a tool makes has the game's data in it: it is yours alone, never share it. 
 - **Touch screens** (Android, iPhone, iPad): a stick where your left thumb lands, ATTACK and JUMP at the right,
   START (COIN in The Simpsons Arcade Game); a controller hides them.
 
-## Building it
+## Shortcuts and launchers
 
-Python 3.10 or newer, CMake 3.20 or newer, a C11 / C++17 compiler and SDL2 2.30 or newer. The simplest SDL2 is the
+A shortcut or a launcher can name the ROM set instead of keeping it beside the games: `--game PATH` (the .zip, the
+.7z, or its folder). `--prepare` takes the game's graphics and sounds out of it (`simpsons.assets`) with no window
+and ends. RecompLauncher sets The Simpsons Mr. Plow Edition up this way, from the release's `recomplauncher.json`,
+and shows OPTIONS' settings on the game's page.
+
+## How it's made
+
+The games are built on the game's decompilation, [simpsons-decomp](https://github.com/cheviman/simpsons-decomp):
+both of the arcade board's programs (the Konami 053248's and the Z80's) in C, checked frame by frame against MAME in
+state, picture and sound. The Simpsons Arcade Game is that program as it is; The Simpsons Mr. Plow Edition replaces
+some of its parts with the console version's (`console/`).
+
+## Building it from source
+
+You don't need this to play: it is for developers. Python 3.10 or newer, CMake 3.20 or newer, a C11 / C++17 compiler and SDL2 2.30 or newer. The simplest SDL2 is the
 releases' own: `-DSIMPSONS_STATIC_SDL2=ON` builds it from its source into the games (CMake fetches it). Otherwise
 the system's (`libsdl2-dev` on Debian and Ubuntu). Clone it with its submodule and build it:
 
