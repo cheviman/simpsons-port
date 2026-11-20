@@ -97,6 +97,10 @@ typedef struct
 	                                       one more than its mask's place in 'shade_masks' (16 x 16 bits, row by row, bit
 	                                       n of byte n / 8 the pixel n) */
 	const uint8_t (*shade_masks)[32];
+	const uint16_t *cell_keeps;         /* each sprite cell's pixels left as the board draws them, its recoloured pens
+	                                       not recoloured there (another figure's in the same pen): 0 none, else one
+	                                       more than its mask's place in 'keep_masks' (as 'shade_masks') */
+	const uint8_t (*keep_masks)[32];
 	int shade_pen;                      /* the shade's colour: 'shade' of this pen's palette colour in the sprite's */
 	simpsons_video_recolour shade;      /* colour code */
 	const simpsons_video_tile_rule *tiles;    /* the layers' rules (none: NULL, 0) */

@@ -287,6 +287,8 @@ void same_character_marks(void);
 
 /* A frame of it, with the menus' actions (START or attack skips it); false once it is over */
 bool presentation_frame(uint32_t pressed);
+/* Whether START or attack skipped it (the menu after it, not the attract mode) */
+bool presentation_skipped(void);
 void presentation_overlay(console_picture *frame);
 
 /* ---- the menu's TV (tv.c) ---- */

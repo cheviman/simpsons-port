@@ -511,13 +511,18 @@ void game_mode_frame(uint16_t u)
    attract mode (original_attract: its opening, the title, the demo, the score ranking, round again) from its opening,
    as a game's end starts it (end_game: its steps at 0), the menu's objects and its song off; the attract's sound as
    OPTIONS' DEMO SOUND has it, as on the cabinet. ATTRACT_LEAVE's buttons end it: the screen and the sound cleared, the
-   TV drawn again (tv.c), INTRO's page at ATTRACT */
+   TV drawn again (tv.c), INTRO's page at ATTRACT. The same after the presentation at power-on left untouched (the
+   players' issue 23, "Have the attract mode play after the Konami logo", as tmnt-port), ended to the menu */
 #define ATTRACT_LEAVE       (ACTION_BIT(ACTION_ACCEPT) | ACTION_BIT(ACTION_BACK) | ACTION_BIT(ACTION_START))
 #define INTRO_ATTRACT_LINE  1          /* (menu.c's INTRO_ATTRACT) */
+
+static bool attract_to_menu;    /* the attract mode after the presentation: its end opens the menu, not INTRO */
 
 void console_attract_watch(void)
 {
 	uint16_t place = 0, sprite_place = 0;
+
+	attract_to_menu = false;
 
 	vector_clear_objects(&place, &sprite_place);
 	clear_sprites();
@@ -554,14 +559,16 @@ static bool attract_watch_frame(uint16_t u, uint32_t pressed)
 	step_subphase = 0u;
 	step_countdown = 0u;
 	tv_forget();
-	console.page = PAGE_INTRO;
-	console.choice = INTRO_ATTRACT_LINE;
+	console.page = attract_to_menu ? PAGE_MENU : PAGE_INTRO;
+	console.choice = attract_to_menu ? 0 : INTRO_ATTRACT_LINE;
 	console.page_frames = 0;
+	attract_to_menu = false;
 	return false;
 }
 
-/* The attract mode's frame: the presentation at power-on, then the menus on the TV; ARCADE's coin, and the attract's
-   own start of the game once its credit has gone in */
+/* The attract mode's frame: the presentation at power-on, the cabinet's attract mode after it when it was left
+   untouched, then the menus on the TV; ARCADE's coin, and the attract's own start of the game once its credit has
+   gone in */
 void attract(uint16_t u)
 {
 	uint32_t pressed = console.pressed;
@@ -630,6 +637,11 @@ void attract(uint16_t u)
 		console.page_frames = 0;
 		pressed = 0;
 		memset(player_pressed, 0, sizeof(player_pressed));
+		if (!presentation_skipped() && !console.lan_start_due)
+		{
+			console_attract_watch();    /* (left untouched: the cabinet's attract mode, the players' issue 23) */
+			attract_to_menu = true;
+		}
 	}
 	if (console.page == PAGE_ATTRACT)
 	{

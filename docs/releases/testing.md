@@ -13,6 +13,11 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
   colour, so Bart's profile had a green bar on one side and a black one on the other. A backdrop of one colour at both
   edges (the menu's TV, the stage cards) still fills the sides.
 - **Bart's shirt in the ending** (the players' issue 25): orange too as he turns to watch Homer throw the diamond.
+- **Maggie in Bart's arms at the ending** (the players' issue 27): when Bart is the one who picks her up after the
+  diamond goes into Burns' mouth, her onesie stays light blue; only his shirt is orange.
+- **The attract mode after the Konami logo** (the players' issue 23): left alone at power-on, the Konami logo is
+  followed by the cabinet's own attract mode (its title, the characters, the demo, the scores); a button opens the
+  menu. Skipping the logo goes to the menu as before.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.

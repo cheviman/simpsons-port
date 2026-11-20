@@ -19,7 +19,8 @@
  *    (update_sprites) with palette set 0's sprite colours (the players' in a game). The sound is one of Bart's voices
  *    (Sebas: "el sonido usemos uno de bart"), the one he says when he has stood still too long (3F12: the PCM effect
  *    of the K053260's sample 34), which Sebas chose by ear among them (13-11-2026: "3f12"); the others are listed in
- *    console/PLAN.md.
+ *    console/PLAN.md. Left untouched, the cabinet's own attract mode follows it, as in tmnt-port (console.c, the
+ *    players' issue 23); skipped, the menu.
  */
 #include "console_internal.h"
 
@@ -77,6 +78,7 @@ static struct
 	int part_frame;
 	int lit_to;                /* the logo is lit left of here */
 	int brightness;            /* 0-256 */
+	bool skipped;              /* START or attack pressed during it */
 } show;
 
 static uint16_t walker(int index)
@@ -166,6 +168,11 @@ static void next_part(int part)
 	show.part_frame = 0;
 }
 
+bool presentation_skipped(void)
+{
+	return show.skipped;
+}
+
 bool presentation_frame(uint32_t pressed)
 {
 	if (show.part == 4)
@@ -175,7 +182,10 @@ bool presentation_frame(uint32_t pressed)
 	if (show.frame == 1)
 		set_up();
 	if ((pressed & (ACTION_BIT(ACTION_START) | ACTION_BIT(ACTION_ACCEPT))) && show.part < 3)
+	{
+		show.skipped = true;
 		next_part(3);    /* (skipped: the fade out at once) */
+	}
 	switch (show.part)
 	{
 		case 0:

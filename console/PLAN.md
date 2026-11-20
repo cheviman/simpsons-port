@@ -748,3 +748,25 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     and its goons from 4460. --wide-hashes against the build before, 16:9: stage 2 the same till 4667, every other
     stage and both bonus games the same in every frame. WIDE OFF, stage 2: the same state, picture and sound hashes as
     before. Not checked on a device.
+- **20-11-2026, the attract mode after the Konami logo** (the players' issue 23, "[Request] Have the attract mode
+  play after the Konami logo ... (similar to TMNT)"; Sebas: "el 23 lo hicimos?"): the presentation at power-on left
+  untouched is followed by the cabinet's own attract mode, as INTRO > ATTRACT plays it (console_attract_watch: its
+  opening, the title, the characters' pages, the demo, the score ranking, round again), with no menu over it; A,
+  Back or Start end it on the menu at ARCADE (attract_to_menu), not on INTRO's page. The presentation skipped with
+  START or attack (presentation_skipped) goes to the menu as before, and so does a LAN game's power-on (no
+  presentation). The menu left alone still plays INTRO (Sebas's choice, issue 8).
+  - Checked (the console's headless, --actions): untouched, the presentation till about 560, the attract mode from
+    then (its clouds and title at 600 and 700, the demo at 1400, the board's steps going on at 2900); A at 1500, the
+    menu on the TV at 1510 at ARCADE; A at 200 (the presentation skipped), the menu at 400. Not checked on a device.
+- **20-11-2026, Maggie in Bart's arms at the ending** (the players' issue 27, "Maggie's dress is still red when Bart
+  picks her up after putting the diamond in Burns' mouth"; Sebas painted the shirt: "queres que te lo pinte a
+  mano?"): in a game of Bart alone, he is the one who picks Maggie up after the diamond goes into Burns' mouth (in a
+  four-player game Marge does), and his sprite carrying her (0870, 4 x 4 cells) has her onesie and his shirt in the
+  same pen, three of its cells shared (0876, 0879, 087C). The video's recolouring takes keep masks
+  (simpsons_video_recolouring's cell_keeps and keep_masks, laid out as the shade's): a cell's pixels drawn as the board
+  draws them, neither recoloured nor in the shirt's shade; bart_shirt.c's maggie_carried has her 67 pixels there, from
+  Sebas's painting of frame 32880 (the cabinet's colours with the shirt painted orange, local/issue27).
+  - Checked (the console's headless, --arcade-start, stage 8's script with Bart alone): frame 32880 the same as the
+    painting in every pixel; 32770 to 33060 (Bart carrying her) 41 pixels from the cabinet's colours, the shirt alone,
+    where 108 were; the bend before (32750, 32760) Maggie light blue as before. The 25 scenarios identical. Not
+    checked on a device.

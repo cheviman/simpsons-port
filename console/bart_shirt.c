@@ -37,7 +37,10 @@
  *      family's hug at the ending, and the family walking to Channel 6 after the second bonus game.
  *    In all of those sprites pen 7 is the shirt, but in Maggie standing (sprite 5974, 1 x 2 cells), which Bart's own
  *    lists draw too (02's 6130 in colour 6, the far family's 7F76 in colour 0, the same list as kind 39's): her onesie,
- *    left light blue (the players' issue 14: Maggie orange when Bart picks her up). Pen 8 is the shirt's shade and
+ *    left light blue (the players' issue 14: Maggie orange when Bart picks her up), and in Bart carrying her at the
+ *    ending, after the diamond goes into Burns' mouth (his sprite 0870, 4 x 4 cells, when he is the one who picks her
+ *    up): her onesie and his shirt share three of its cells, so her pixels there are kept as the board draws them
+ *    (maggie_carried, the video's keep masks; painted by Sebas, the players' issue 27). Pen 8 is the shirt's shade and
  *    the shorts: each frame of them is assembled as the sprite engine lays it out, and a component of pen 8 is the
  *    shirt's shade when it touches the shirt (pen 7) on half its border or more that is not the outline (pen 3), and
  *    not the shorts' own shade (pen 12);
@@ -127,6 +130,23 @@ static const uint16_t family_turn_codes[] = { 0x5AF8, 0x5AF9, 0x5B14 };
    its other lists there with the shirt's pen are the water's splashes) */
 static const uint16_t gorge_bart_codes[] = { 0x76D1, 0x76D4, 0x76D9, 0x7740, 0x7750, 0x7790 };
 
+/* Maggie in Bart's arms at the ending (his sprite 0870): her onesie's pixels in the cells it shares with his shirt,
+   each row's bit n its pixel n, kept light blue (Sebas painted the shirt on frame 32880 of a game of Bart alone; the
+   players' issue 27, "Maggie's dress is still red when Bart picks her up") */
+static const struct
+{
+	uint16_t cell;
+	uint16_t rows[16];
+} maggie_carried[] = {
+	{ 0x0876, { 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0028,
+		0x0038, 0x0008, 0x0000 } },
+	{ 0x0879, { 0x0000, 0x0000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x2000, 0x6000, 0xE200, 0xE000, 0xE000, 0xC000,
+		0xC000, 0x0000, 0x0000 } },
+	{ 0x087C, { 0x0000, 0x0000, 0x0000, 0x0000, 0x0003, 0x003F, 0x0070, 0x0000, 0x0000, 0x0000, 0x0003, 0x003F, 0x007F,
+		0x007B, 0x007F, 0x001A } },
+};
+#define MAGGIE_CARRIED      (sizeof(maggie_carried) / sizeof(maggie_carried[0]))
+
 /* The pictures in the tile layers: Bart's shirt's map cells (columns, rows), the picture's tiles there, its pen */
 static const simpsons_video_tile_rule shirt_tiles[] = {
 	{ LAYER_A, 11, 23, 30, 27, 0x5B9C, 0x5BE9, PEN(7) },    /* the attract mode's profile of Bart ("YO, MAN!") */
@@ -144,6 +164,8 @@ static uint16_t barney_body[CELLS], barney_feet[CELLS];    /* (his cells' pen 4 
 static uint32_t cell_colours[CELLS];
 static uint16_t cell_shades[CELLS];
 static uint8_t (*shade_masks)[32];
+static uint16_t cell_keeps[CELLS];
+static uint8_t keep_masks[MAGGIE_CARRIED][32];
 static int shade_mask_count;
 static uint16_t shirt_colours[0x8000];    /* (each palette colour's, worked out once) */
 static bool tables_made;
@@ -653,6 +675,16 @@ static void make_tables(void)
 		make_shade_masks();
 		free(frame);
 	}
+	memset(cell_keeps, 0, sizeof(cell_keeps));
+	for (size_t index = 0; index < MAGGIE_CARRIED; index++)
+	{
+		for (int row = 0; row < 16; row++)
+		{
+			keep_masks[index][2 * row] = (uint8_t)(maggie_carried[index].rows[row] & 0xFFu);
+			keep_masks[index][2 * row + 1] = (uint8_t)(maggie_carried[index].rows[row] >> 8);
+		}
+		cell_keeps[maggie_carried[index].cell % CELLS] = (uint16_t)(index + 1u);
+	}
 	free(vote_pool);
 	vote_pool = NULL;
 	for (unsigned colour = 0; colour < 0x8000u; colour++)
@@ -679,6 +711,8 @@ void console_bart_shirt_apply(void)
 	recolouring.cell_colours = cell_colours;
 	recolouring.cell_shades = cell_shades;
 	recolouring.shade_masks = (const uint8_t (*)[32])shade_masks;
+	recolouring.cell_keeps = cell_keeps;
+	recolouring.keep_masks = (const uint8_t (*)[32])keep_masks;
 	recolouring.shade_pen = SHIRT_PEN;
 	recolouring.shade = shade;
 	recolouring.tiles = shirt_tiles;

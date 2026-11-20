@@ -672,6 +672,14 @@ static unsigned cell_recoloured_pens(int code, int colour)
 	return cell_recoloured(code, colour) && g_recolouring.cell_pens ? g_recolouring.cell_pens[code % SPRITE_CELLS] : 0u;
 }
 
+static const uint8_t *cell_keep_mask(int code, int colour)
+{
+	if (!cell_recoloured(code, colour) || !g_recolouring.cell_keeps || !g_recolouring.keep_masks
+		|| !g_recolouring.cell_keeps[code % SPRITE_CELLS])
+		return NULL;
+	return g_recolouring.keep_masks[g_recolouring.cell_keeps[code % SPRITE_CELLS] - 1];
+}
+
 static const uint8_t *cell_shade_mask(int code, int colour)
 {
 	if (!cell_recoloured(code, colour) || !g_recolouring.cell_shades || !g_recolouring.shade_masks
@@ -709,12 +717,13 @@ static void draw_cell(int code, int colour, bool flip_x, bool flip_y, int left, 
 	mask |= 1u << 31;
 	const unsigned recoloured_pens = cell_recoloured_pens(code, colour);
 	const uint8_t *shade_mask = cell_shade_mask(code, colour);
+	const uint8_t *keep_mask = cell_keep_mask(code, colour);
 	colour = 16 * (colour % COLOUR_CODES);
 	code %= SPRITE_CELLS;
 	for (int y = top; y <= bottom; y++, source_y += flip_y ? -1 : 1)
 	{
 		const uint64_t pens = cell_row(code, source_y);
-		const unsigned shade = shade_row(shade_mask, source_y);
+		const unsigned shade = shade_row(shade_mask, source_y), keep = shade_row(keep_mask, source_y);
 		uint16_t *line = &g_bitmap[AT(left, y)];
 		uint8_t *line_priority = &g_priority[AT(left, y)];
 
@@ -725,7 +734,8 @@ static void draw_cell(int code, int colour, bool flip_x, bool flip_y, int left, 
 			const int pen = (int)(pens >> (4 * sx)) & 15;
 
 			if (pen)
-				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes, recoloured_pens, (shade >> sx) & 1);
+				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes,
+					(keep >> sx) & 1 ? 0u : recoloured_pens, ((shade & ~keep) >> sx) & 1);
 		}
 	}
 }
@@ -742,6 +752,7 @@ static void draw_cell_zoomed(int code, int colour, bool flip_x, bool flip_y, int
 	mask |= 1u << 31;
 	const unsigned recoloured_pens = cell_recoloured_pens(code, colour);
 	const uint8_t *shade_mask = cell_shade_mask(code, colour);
+	const uint8_t *keep_mask = cell_keep_mask(code, colour);
 	colour = 16 * (colour % COLOUR_CODES);
 	code %= SPRITE_CELLS;
 
@@ -787,7 +798,7 @@ static void draw_cell_zoomed(int code, int colour, bool flip_x, bool flip_y, int
 	for (int y = top; y <= bottom; y++, source_y += dy)
 	{
 		const uint64_t pens = cell_row(code, source_y >> 16);
-		const unsigned shade = shade_row(shade_mask, source_y >> 16);
+		const unsigned shade = shade_row(shade_mask, source_y >> 16), keep = shade_row(keep_mask, source_y >> 16);
 		uint16_t *line = &g_bitmap[AT(left, y)];
 		uint8_t *line_priority = &g_priority[AT(left, y)];
 		int32_t sx = source_x;
@@ -799,8 +810,8 @@ static void draw_cell_zoomed(int code, int colour, bool flip_x, bool flip_y, int
 			const int pen = (int)(pens >> (4 * (sx >> 16))) & 15;
 
 			if (pen)
-				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes, recoloured_pens,
-					(shade >> (sx >> 16)) & 1);
+				cell_pen(&line[x], &line_priority[x], pen, colour, mask, modes,
+					(keep >> (sx >> 16)) & 1 ? 0u : recoloured_pens, ((shade & ~keep) >> (sx >> 16)) & 1);
 		}
 	}
 }
