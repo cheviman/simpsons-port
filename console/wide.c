@@ -36,8 +36,8 @@
  *    the play keep its sides. The other screens (the menus' TV, the portraits, the stage cards, the stories, the bonus
  *    stages, the name entry, the ending, and stage 3's elevator from the platform's standing till the play goes on at
  *    the shaft's top, its map blank past the cabinet's 288 columns, the platform's limits the cabinet's) are pictures
- *    of the board's width, centred: WIDE's sides there are their edges' colour (the TV's orange), or black where their
- *    edges are not of one colour, and black in stage 2's closing story, its fall off the cliff and down the gorge (as
+ *    of the board's width, centred: WIDE's sides there are their edges' colour where both edges are the same one colour
+ *    (the TV's orange), else black (a scene as 4:3, the players' issue 24), and black in stage 2's closing story, its fall off the cliff and down the gorge (as
  *    4:3, Sebas); the presentation keeps the board's 320. A stage's card is a picture till the stage draws its play,
  *    stage 3's too, drawn from its own scene: the play comes with its sides at once. (The elevator's sides of the shaft's own
  *    cells, climb_fill, are off: CLIMB_SIDES.)
@@ -1173,9 +1173,12 @@ void wide_picture_sides(console_picture *frame)
 	{
 		const uint32_t left = black_drawn ? 0x000000u : edge_colour(frame, first);
 		const uint32_t right = black_drawn ? 0x000000u : edge_colour(frame, last);
+		/* (both sides one colour only when both edges are it, a backdrop: the TV's orange, the cards' lilac; a scene
+		   with one edge of one colour, Bart's profile's green, as 4:3 on black, the players' issue 24) */
+		const uint32_t sides = left == right ? left : 0x000000u;
 
-		draw_fill(frame, PICTURE_FIRST(frame), 0, first - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT, left);
-		draw_fill(frame, last + 1, 0, PICTURE_END(frame) - last - 1, SIMPSONS_VIDEO_HEIGHT, right);
+		draw_fill(frame, PICTURE_FIRST(frame), 0, first - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT, sides);
+		draw_fill(frame, last + 1, 0, PICTURE_END(frame) - last - 1, SIMPSONS_VIDEO_HEIGHT, sides);
 	}
 }
 

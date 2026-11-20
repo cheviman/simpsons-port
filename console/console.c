@@ -723,7 +723,7 @@ void console_overlay(console_picture *frame)
 		presentation_overlay(frame);
 		return;
 	}
-	wide_picture_sides(frame);    /* (WIDE: a picture's sides, its edges' colour) */
+	wide_picture_sides(frame);    /* (WIDE: a picture's sides, black or its backdrop's colour) */
 	menu_overlay(frame);
 	choice_overlay(frame);
 	character_change_overlay(frame);

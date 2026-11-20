@@ -29,7 +29,7 @@
  *      colour 0 with pen 7, Bart drawn by the goon's object) and his far figure of kind A4, in colour 0;
  *    - the ending's family walking away under the stars (kind 14, colour 6): his sprites of it, the lists' entries
  *      5988-5A5F of 2 x 2 to 4 x 4 cells (Maggie's there, crawling with the same pen, are 1 x 2; the diamond's are
- *      past 5A5F);
+ *      past 5A5F), and his turn as Homer throws the diamond, past 5A5F too (family_turn_codes, the players' issue 25);
  *    - Bart falling into the gorge at stage 5's end and in its water (the scenery's kind, 10, colour 6: its six
  *      sprites of him, gorge_bart_codes; its other lists with the pen are the water's splashes), the players' issue 14;
  *    - the pictures drawn in the tile layers, by their map's cells and the picture's tiles (the rules below): Bart's
@@ -118,6 +118,10 @@ static const int orange_shirt[3] = { 31, 10, 4 };    /* (the attract mode's open
 static const int barney_green[3] = { 0, 16, 11 };
 static const int barney_shade[3] = { 0, 10, 7 };
 static const int barney_salmon[3] = { 26, 14, 12 };
+
+/* Bart turning to watch Homer throw the diamond, in the family's lists past 5A5F (692A, 6954 and 6984: his shirt
+   there, beside Homer's turn, 5AEC-5B10, and the diamond's, 5AFD-5B4C; the players' issue 25) */
+static const uint16_t family_turn_codes[] = { 0x5AF8, 0x5AF9, 0x5B14 };
 
 /* Bart's sprites in the gorge (the scenery's lists 7C9E, falling, and 7DE2, in the water, in the family's colour;
    its other lists there with the shirt's pen are the water's splashes) */
@@ -496,7 +500,12 @@ static bool players_colour(const sprite *s)
 
 static bool family_bart(const sprite *s)
 {
-	return s->colour == FAMILY_COLOUR && s->code >= FAMILY_BART_FIRST && s->code <= FAMILY_BART_LAST
+	if (s->colour != FAMILY_COLOUR)
+		return false;
+	for (size_t index = 0; index < sizeof(family_turn_codes) / sizeof(family_turn_codes[0]); index++)
+		if (s->code == family_turn_codes[index])
+			return true;
+	return s->code >= FAMILY_BART_FIRST && s->code <= FAMILY_BART_LAST
 		&& sprite_columns(s) * sprite_rows(s) >= FAMILY_BART_CELLS;
 }
 
