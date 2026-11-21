@@ -770,3 +770,17 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     painting in every pixel; 32770 to 33060 (Bart carrying her) 41 pixels from the cabinet's colours, the shirt alone,
     where 108 were; the bend before (32750, 32760) Maggie light blue as before. The 25 scenarios identical. Not
     checked on a device.
+- **21-11-2026, WIDE: stage 2's mailbox by Otto's stall** (the players' issue 29, "a mailbox which is invisible until
+  the player interacts with it. While it is invisible, NPC characters and the Player characters can be masked by the
+  mailbox"; Sebas: "Sí, seguí"): the mailbox (type 00, kind 05) is a spawn of the type the plain goon takes, so
+  spawn_as_play_begins put it past the wider right side as the stage began (01F0); its first frame
+  (start_object_from_setup) took its sprites' priority from the floor map there, 3 (behind the layers), and
+  settle_moved_spawns put it back at its place (0180) after two frames with that priority kept: unseen, yet marking
+  the priority buffer, so the sprites behind it were hidden. settle_moved_spawns now takes the priority again from the
+  floor where it stands (floor_priority_again, the floor's scratch at 48E8-48EE left as it was).
+  - Checked (the console's headless, --arcade-start, stage 2's script): the mailbox's object at frame 2600 the same in
+    WIDE 16:9 as with WIDE off, byte for byte (attributes 10, was 30), and the work RAM changed in that byte alone;
+    WIDE's frames of every stage's script and four_players/one_player in 16:10, 16:9 and 20:9 the same as before but
+    stage 2's 2831 to 4618 (16:9; 2831-3165 in 16:10, 2831-3133 in 20:9), whose pixels change at the mailbox alone
+    (its 32 x 46 box as it scrolls by; in 20:9's 3130 a 62 x 30 one, the goon passing behind it). The 25 scenarios identical. The thrown items the report also names (by the pink ape)
+    not reproduced with the four-player script. Not checked on a device.

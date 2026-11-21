@@ -1358,8 +1358,31 @@ static void note_moved(uint16_t object, int moved)
 	}
 }
 
+/* An object's sprites' priority against the layers taken again from the floor map where it stands now, as the game's
+   start_object_from_setup takes it where it starts: a spawn moved past WIDE's side started on a cell that is not its
+   place's (stage 2's mailbox by Otto's stall, put in at 01F0, stood behind the layers back at 0180: unseen, yet hiding
+   the sprites behind it, the players' issue 29). The floor's scratch the game keeps in its RAM (48E8-48EE: the
+   offsets, their signs, the column and the place) is left as it was */
+#define FLOOR_SCRATCH       0x48E8u
+#define FLOOR_SCRATCH_SIZE  7
+
+static void floor_priority_again(uint16_t object)
+{
+	uint8_t scratch[FLOOR_SCRATCH_SIZE];
+	uint16_t cell = 0u;
+	uint32_t no_floor = 0u;
+
+	for (int index = 0; index < FLOOR_SCRATCH_SIZE; index++)
+		scratch[index] = mem_read8((uint16_t)(FLOOR_SCRATCH + index));
+	floor_at_offset(object, &cell, &no_floor);
+	OBJECT(object)->attributes = (uint8_t)(((cell >> 8) & 0x30u) | (OBJECT(object)->attributes & 0xCFu));
+	for (int index = 0; index < FLOOR_SCRATCH_SIZE; index++)
+		mem_write8((uint16_t)(FLOOR_SCRATCH + index), scratch[index]);
+}
+
 /* At each frame's end: what a moved spawn put in at its place this frame, moved with it; a moved spawn that is an
-   enemy kept where it was moved, one that is not back at its place after MOVED_FRAMES (or gone: forgotten) */
+   enemy kept where it was moved, one that is not back at its place after MOVED_FRAMES (or gone: forgotten), with its
+   sprites' priority of its place's floor (floor_priority_again) */
 static void settle_moved_spawns(void)
 {
 	uint32_t in_use = 0;
@@ -1398,7 +1421,10 @@ static void settle_moved_spawns(void)
 			continue;
 		}
 		if (x - moved_spawns[index].x <= MOVED_DRIFT && moved_spawns[index].x - x <= MOVED_DRIFT)
+		{
 			OBJECT(object)->x = (uint16_t)(x - moved_spawns[index].moved);
+			floor_priority_again(object);
+		}
 	}
 	moved_count = kept;
 }
