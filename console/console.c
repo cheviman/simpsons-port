@@ -721,6 +721,7 @@ void console_overlay(console_picture *frame)
 	if (arcade_test)
 	{
 		wide_picture_sides(frame);    /* (the arcade's screens as they are, WIDE's sides) */
+		wide_hud_closed(frame);
 		return;
 	}
 	if (!console.booted)
@@ -736,6 +737,7 @@ void console_overlay(console_picture *frame)
 		return;
 	}
 	wide_picture_sides(frame);    /* (WIDE: a picture's sides, black or its backdrop's colour) */
+	wide_hud_closed(frame);    /* (WIDE: Lisa's box closed at its right) */
 	menu_overlay(frame);
 	choice_overlay(frame);
 	character_change_overlay(frame);

@@ -784,3 +784,14 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     stage 2's 2831 to 4618 (16:9; 2831-3165 in 16:10, 2831-3133 in 20:9), whose pixels change at the mailbox alone
     (its 32 x 46 box as it scrolls by; in 20:9's 3130 a 62 x 30 one, the goon passing behind it). The 25 scenarios identical. The thrown items the report also names (by the pink ape)
     not reproduced with the four-player script. Not checked on a device.
+- **21-11-2026, WIDE: Lisa's box closed at its right** (the players' issue 29, "the HUD for Lisa should have a white,
+  single pixel-wide strip added to the right side to properly close the box for wide-screen views"; Sebas: "y si"):
+  the players' boxes at the top (the fixed layer's) are 72 pixels wide, each with its white side at its left (the
+  board's 16, 88, 160 and 232, rows 8 to 26); the fourth's right side would be the board's 304, under the cabinet's
+  black edge (tile 3F, edges_masked), so the game never draws it. wide_hud_closed (over the frame the video drew, from
+  console_overlay, in WIDE's play alone) copies the side the boxes share to the right of Lisa's when the boxes are
+  drawn there (that side white from row 8 to 25, the box's top and bottom reaching its end). A picture shown as the
+  cabinet's (4:3, black sides: GAME OVER, the stories) is left as the cabinet shows it.
+  - Checked (the console's headless, --arcade-start): stage 2's script (2600-4400) and four_players (1500-15000) in
+    16:10, 16:9 and 20:9 against the build before: 19 pixels changed in the frames of play, the closing column alone
+    (rows 8 to 26), nothing in the others; with WIDE off nothing. The 25 scenarios identical. Not checked on a device.

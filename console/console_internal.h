@@ -339,6 +339,7 @@ void menu_overlay(console_picture *frame);
 /* Over the frame the video drew: a picture's sides (a screen of the board's width: the menus' TV, the stage cards, the
    stories...): its backdrop's colour where both edges are the same one colour, else black */
 void wide_picture_sides(console_picture *frame);
+void wide_hud_closed(console_picture *frame);
 /* The picture's columns the window leaves out at each side (it shows its middle, console_wide_view) */
 int wide_crop(const console_picture *frame);
 

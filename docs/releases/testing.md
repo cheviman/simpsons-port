@@ -7,6 +7,9 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **WIDE, stage 2's mailbox by Otto's stall** (the players' issue 29): seen again before it is hit. It was put in past
   the wider side as the stage began and kept that place's priority when it came back to its own, so it stood behind
   the background: unseen, yet hiding the players and goons that walked behind it.
+- **WIDE, Lisa's box at the top closed at its right** (the players' issue 29): the players' boxes each have their white
+  side at the left, and the fourth's right one fell under the cabinet's black edge, so the game never drew it; in WIDE's
+  play it is drawn now, as the others are.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.

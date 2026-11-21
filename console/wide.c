@@ -1182,6 +1182,40 @@ void wide_picture_sides(console_picture *frame)
 	}
 }
 
+/* The players' boxes at the top of the play (the fixed layer's): 72 pixels wide, each with its white side at its left,
+   the board's 16, 88, 160 and 232, from row 8 to row 26. The fourth's right side would be the board's 304, under the
+   cabinet's black edge (edges_masked): the game never draws it, as the cabinet showed no more */
+#define HUD_TOP             8
+#define HUD_BOTTOM          26
+#define HUD_LAST_SIDE       232
+#define HUD_BOX_WIDTH       72
+
+static bool hud_white(const console_picture *frame, int x, int y)
+{
+	const uint32_t colour = frame->pixels[y * frame->stride + frame->left + x];
+
+	return (colour >> 16 & 0xFFu) >= 0xF0u && (colour >> 8 & 0xFFu) >= 0xF0u && (colour & 0xFFu) >= 0xF0u;
+}
+
+/* Over the frame the video drew, in WIDE's play: the fourth player's box (Lisa's) closed at its right as the others
+   are, the side the boxes share copied there, when the boxes are drawn (the players' issue 29: "the HUD for Lisa
+   should have a white, single pixel-wide strip added to the right side") */
+void wide_hud_closed(console_picture *frame)
+{
+	const int dx = (frame->right - frame->left) / 2;    /* (the fixed layer's, centred: console_wide_frame) */
+	const int side = HUD_LAST_SIDE + dx, closing = side + HUD_BOX_WIDTH;
+
+	if (shown_drawn != SHOW_PLAY || fixed_first != EDGE || side < PICTURE_FIRST(frame) || closing >= PICTURE_END(frame))
+		return;
+	for (int y = HUD_TOP; y < HUD_BOTTOM; y++)
+		if (!hud_white(frame, side, y))
+			return;
+	if (!hud_white(frame, closing - 1, HUD_TOP) || !hud_white(frame, closing - 1, HUD_BOTTOM))
+		return;    /* (the box's top and bottom reaching its end) */
+	for (int y = HUD_TOP; y <= HUD_BOTTOM; y++)    /* (row 26 the shared side's shadow, grey: as the others') */
+		frame->pixels[y * frame->stride + frame->left + closing] = frame->pixels[y * frame->stride + frame->left + side];
+}
+
 /* The picture's columns the window leaves out at each side (its middle: console_wide_view), for what is written at
    the picture's edges */
 int wide_crop(const console_picture *frame)
