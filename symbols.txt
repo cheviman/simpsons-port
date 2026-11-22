@@ -36152,3 +36152,70 @@ local add_rom_bytes 078E68 t4 sum_before
 local add_rom_bytes 078E6B t1 byte_place
 local add_rom_bytes 078E6B t2 rom_byte
 local add_rom_bytes 078E7A t1 watchdog_read
+
+# ======== the screen's edges an object's x is checked against ========
+# The board shows objects with x 0040-017F; the code puts objects in, takes them away, stops them or keeps them in a
+# little past one side or the other, each with its own numbers. Here they are by the edge and the margin past it
+# (runtime/include/game/support.h: SCREEN_LEFT 40, SCREEN_RIGHT 180, PAST_LEFT(m) = 40 - m, PAST_RIGHT(m) = 180 + m,
+# SCREEN_SPAN(l, r) = PAST_RIGHT(r) - PAST_LEFT(l), X_BETWEEN(x, from, to) = from <= x < to as the CPU's unsigned
+# 16-bit test), the same numbers on the board, and a port with a wider screen (SCREEN_MORE_LEFT, SCREEN_MORE_RIGHT)
+# moves them. constant lines: x less the left limit, compared with the span (the code keeps the difference in a
+# variable), or a signed compare; window lines: an unsigned test of x against LOW-HIGH (HIGH not in it), x < HIGH
+# being LOW 0, the 0 an x left of the screen wraps past (PAST_LEFT(0x40)).
+#
+# removed outside 0010-01AF
+constant carried_obstacle_update 10 PAST_LEFT(0x30)
+constant carried_obstacle_update 1A0 SCREEN_SPAN(0x30, 0x30)
+# removed outside 0010-01BF
+constant sideshow_bob_update 10 PAST_LEFT(0x30)
+constant sideshow_bob_update 1B0 SCREEN_SPAN(0x30, 0x40)
+# removed outside 0040-01FF
+constant dreamland_obstacle_update 40 PAST_LEFT(0)
+constant dreamland_obstacle_update 1C0 SCREEN_SPAN(0, 0x80)
+# removed outside 0030-01BF
+constant door_kind_12_run 30 PAST_LEFT(0x10)
+constant door_kind_12_run 190 SCREEN_SPAN(0x10, 0x40)
+# removed outside 0040-01BF (carry while inside)
+constant remove_off_screen 40 PAST_LEFT(0)
+constant remove_off_screen 180 SCREEN_SPAN(0, 0x40)
+# counts a bounce when it starts its rush off the screen (outside 0040-017F)
+constant ninja_rush_start 40 PAST_LEFT(0)
+constant ninja_rush_start 140 SCREEN_SPAN(0, 0)
+# removed left of 0040, signed
+constant marge_cloud 40 PAST_LEFT(0)
+# the thrown thing falls until it is at 0044 or left of it, or 017C or right of it, signed
+constant player_second_sprite_fall 44 PAST_LEFT(-4)
+constant player_second_sprite_fall 17C PAST_RIGHT(-4)
+# removed right of 01A0 (unsigned: or left of 0) or left of 0020 (signed)
+window scripted_object 0 1A1 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x21)
+constant scripted_object 20 PAST_LEFT(0x20)
+# removed at 01C0 or right of it (unsigned: or left of 0)
+window goon_hat_update 0 1C0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x40)
+window woman_in_apron_update 0 1C0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x40)
+window bluebird_update 0 1C0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x40)
+window looping_scenery_leave 0 1C0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x40)
+window enemy_remove_off_screen 0 1C0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x40)
+# removed at 01E0 or right of it (or left of 0)
+window teacup_goon_ride_update 0 1E0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x60)
+# removed at 01F0 or right of it (or left of 0)
+window solid_scenery_update 0 1F0 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0x70)
+# removed outside 0040-01CF
+window girl_with_food_update 40 1D0 X_BETWEEN PAST_LEFT(0) PAST_RIGHT(0x50)
+# stopped off the screen, outside 0040-017F
+window enemy_wait_while_target_down 40 180 X_BETWEEN PAST_LEFT(0) PAST_RIGHT(0)
+window enemy_back_off 40 180 X_BETWEEN PAST_LEFT(0) PAST_RIGHT(0)
+window clown_on_ball_hop 40 180 X_BETWEEN PAST_LEFT(0) PAST_RIGHT(0)
+# bounces off the screen's edge outside 0048-0177
+window ninja_rush_leap 48 178 X_BETWEEN PAST_LEFT(-8) PAST_RIGHT(-8)
+# its x speed stopped outside 0010-01AF
+window stop_beyond_screen_edge 10 1B0 X_BETWEEN PAST_LEFT(0x30) PAST_RIGHT(0x30)
+# on the screen 16 pixels in from its edges, 0050-016F
+window enemy_on_screen 50 170 X_BETWEEN PAST_LEFT(-0x10) PAST_RIGHT(-0x10)
+# removed left of 0030 (from 0: unsigned)
+window moe_remove_at_edge 0 30 X_BETWEEN PAST_LEFT(0x40) PAST_LEFT(0x10)
+window car_doors_run 0 30 X_BETWEEN PAST_LEFT(0x40) PAST_LEFT(0x10)
+# removed left of 0020 (from 0)
+window poster_pair_leave 0 20 X_BETWEEN PAST_LEFT(0x40) PAST_LEFT(0x20)
+# started once the scroll brings it left of 0180, and the cemetery's left of 0160 (from 0)
+window obstacle_start 0 180 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(0)
+window cemetery_obstacle_raise_floor 0 160 X_BETWEEN PAST_LEFT(0x40) PAST_RIGHT(-0x20)

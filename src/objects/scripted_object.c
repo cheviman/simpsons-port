@@ -3,7 +3,7 @@
  *    Description: the object that runs a script of commands (types E8, E9, 2A)
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -24,7 +24,7 @@ uint16_t scripted_object(uint16_t object, uint16_t rise_speed)
 	screen_x = OBJECT(object)->x;
 	x_high = (uint8_t)(screen_x >> 8);
 	x_low = (uint8_t)screen_x;
-	if ((uint16_t)(((uint32_t)x_high << 8) | x_low) > 0x1A0u || (int16_t)(((uint32_t)x_high << 8) | x_low) < 0x20)
+	if (!X_BETWEEN((uint16_t)(((uint32_t)x_high << 8) | x_low), PAST_LEFT(0x40), PAST_RIGHT(0x21)) || (int16_t)(((uint32_t)x_high << 8) | x_low) < PAST_LEFT(0x20))
 	{
 		OBJECT(object)->flags = 0u;
 		return rise_speed;

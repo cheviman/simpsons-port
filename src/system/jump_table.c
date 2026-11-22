@@ -3,7 +3,7 @@
  *    Description: the fixed program's entry points for the banks (an LBRA each) and the routines the decompiler folded into them
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -912,9 +912,9 @@ uint32_t CONSOLE_ORIGINAL(remove_off_screen)(uint16_t object, uint32_t carry)
 	if (OBJECT(object)->flags != 0u)
 	{
 		object_x = OBJECT(object)->x;
-		window_x = object_x - 0x40u;
-		carry = window_x < 0x180u;
-		if (window_x >= 0x180u)
+		window_x = object_x - PAST_LEFT(0);
+		carry = window_x < SCREEN_SPAN(0, 0x40);
+		if (window_x >= SCREEN_SPAN(0, 0x40))
 		{
 			carry = 0u;
 			OBJECT(object)->flags = 0u;

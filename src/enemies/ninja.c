@@ -3,7 +3,7 @@
  *    Description: stage 7's ninjas (types 32, 33, 3D), their way in, their actions and their star
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    14-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -1028,8 +1028,8 @@ void ninja_rush_start(uint16_t object)
 
 	OBJECT(object)->ninja.bounced = 0u;
 	ninja_x = OBJECT(object)->x;
-	screen_offset = ninja_x - 0x40u;
-	if (screen_offset >= 0x140u)
+	screen_offset = ninja_x - PAST_LEFT(0);
+	if (screen_offset >= SCREEN_SPAN(0, 0))
 	{
 		bounced = OBJECT(object)->ninja.bounced;
 		OBJECT(object)->ninja.bounced = bounced + 1u;
@@ -1106,7 +1106,7 @@ void CONSOLE_ORIGINAL(ninja_rush_leap)(uint16_t object)
 	if (bounced == 0u)
 	{
 		ninja_x = OBJECT(object)->x;
-		if (ninja_x < 0x48 || ninja_x > 0x177)
+		if (!X_BETWEEN(ninja_x, PAST_LEFT(-8), PAST_RIGHT(-8)))
 		{
 			x_speed = OBJECT(object)->x_speed;
 			OBJECT(object)->x_speed = 0u - x_speed;

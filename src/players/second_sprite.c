@@ -3,7 +3,7 @@
  *    Description: each player's second sprite (balloons, thrown things)
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    13-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -269,7 +269,7 @@ void player_second_sprite_fall(uint16_t object)
 
 	second_sprite_x = OBJECT(object + 0x60u)->x;
 	sprite_x = second_sprite_x;
-	if ((int16_t)sprite_x <= 0x44 || (int16_t)sprite_x >= 0x17C)
+	if ((int16_t)sprite_x <= PAST_LEFT(-4) || (int16_t)sprite_x >= PAST_RIGHT(-4))
 	{
 		player_second_sprite_off(object);
 		return;
