@@ -502,6 +502,7 @@ void game_mode_frame(uint16_t u)
 	if (modes_game_frame())
 		return;    /* (MR. PLOW MODE's game over: it ends at its next frame) */
 	same_character_marks();
+	wide_screen_sides();    /* (the game's screen limits by WIDE's sides: wide.c) */
 	original_game_mode_frame(u);
 	if (console.page == PAGE_CHOICE)
 		same_character_portraits();

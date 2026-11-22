@@ -485,7 +485,7 @@ uint16_t prop_start(uint16_t object)
 }
 
 /* Takes the prop away once the scroll brings it left of its x. */
-void prop_leave(uint16_t object)
+void CONSOLE_ORIGINAL(prop_leave)(uint16_t object)
 {
 	uint16_t screen_x = 0, leave_x = 0;
 

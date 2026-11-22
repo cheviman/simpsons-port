@@ -2750,7 +2750,7 @@ void caged_gorilla_leaper_crash(uint16_t object);
 void caged_gorilla_leaper_wait(uint16_t object);
 void caged_gorilla_leaper_vanish(uint16_t object);
 uint16_t prop_start(uint16_t object);
-void prop_leave(uint16_t object);
+void CONSOLE_ORIGINAL(prop_leave)(uint16_t object);
 uint16_t poster_start(uint16_t object);
 void poster_idle(void);
 uint16_t poster_pair_start(uint16_t object);

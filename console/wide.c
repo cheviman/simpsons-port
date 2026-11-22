@@ -1262,6 +1262,7 @@ void console_wide_frame(void)
 		simpsons_video_set_fixed(kept ? (wide_right_now - wide_left_now) / 2 : 0, fixed_first, fixed_last);
 	}
 	simpsons_video_set_wide(wide_left_now, wide_right_now);
+	wide_screen_sides();    /* (the game's limits for the next frame) */
 	audit_frame(shown_now == SHOW_PLAY ? wide_left_now : 0, shown_now == SHOW_PLAY ? wide_right_now : 0);
 	if (debug_on())
 	{
@@ -1426,6 +1427,17 @@ static void play_now(int *left, int *right)
 	*left = MOST(*left, 0);    /* (a side less than none ends where the board's black edge did: the arcade's own
 	                              limits there) */
 	*right = MOST(*right, 0);
+}
+
+/* The game's screen limits (support.h's PAST_LEFT, PAST_RIGHT, SCREEN_SPAN, X_BETWEEN: the board's edges, object x
+   0x40 and 0x180, and a margin) moved by these: WIDE's sides in a stage's play as play_now has them, 0 elsewhere and
+   with WIDE off (the arcade's own limits). Set at each frame's end for the next one and again as the game mode's
+   frame begins (console.c), so the frame a play begins in has the sides it comes with */
+int screen_more_left, screen_more_right;
+
+void wide_screen_sides(void)
+{
+	play_now(&screen_more_left, &screen_more_right);
 }
 
 /* For checks (--wide-check): what the spawn list put in this frame, where it was put */
@@ -1973,6 +1985,25 @@ uint32_t remove_off_screen(uint16_t object, uint32_t carry)
 			OBJECT(object)->flags = 0u;
 	}
 	return carry;
+}
+
+/* The game's prop_leave (objects/stage_props.c): a prop (list 1 type 3D: the stages' scenery objects) is taken away
+   once the scroll brings its x short of its leave x, which its entry in the props table gives (a byte times 16: 04 is
+   0040, the board's left edge), not a limit in the code (support.h's PAST_LEFT): stage 4's in 20:9 went at x 003F,
+   in WIDE's left side in sight (SIMPSONS_WIDE_AUDIT). In WIDE: past the leave x less the left side, signed (the
+   board's compare is unsigned, the same for the x it reaches there) */
+void prop_leave(uint16_t object)
+{
+	int side_left, side_right;
+
+	play_now(&side_left, &side_right);
+	if (!side_left)
+	{
+		original_prop_leave(object);
+		return;
+	}
+	if ((int16_t)OBJECT(object)->x < (int)OBJECT(object)->prop.leave_x - side_left)
+		OBJECT(object)->flags = 0u;
 }
 
 /* The game's carried_obstacle_update (objects/bank_entries.c): the obstacle a fat goon carries on his head (list 1

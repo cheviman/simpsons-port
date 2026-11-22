@@ -833,3 +833,16 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
   limit-like lines of src/ classified by the local worker (52 object limits), read: 13 edge checks WIDE did not move.
   The decomp turns them into named constants (PAST_LEFT, PAST_RIGHT, SCREEN_SPAN, X_BETWEEN in support.h) with a hook,
   screen_more_left/right, 0 on the board; the port sets it from WIDE's sides (next: the merge).
+- **22-11-2026, WIDE: the screen's limits by name, merged** (Sebas: "la decomp, hagamos que sea una constante, es
+  claridad de código. Al port va lo del punto de entrada"; "hay niveles que empiezan a la derecha los enemigos, como el
+  cementerio"): simpsons-decomp ce5a2e6 (core 27b5357) names the 36 edge checks (PAST_LEFT, PAST_RIGHT, SCREEN_SPAN,
+  X_BETWEEN in support.h) with the hook screen_more_left/right, merged here (cd6fe78; the README the port's).
+  wide_screen_sides (wide.c) sets the hook from play_now, at each frame's end and as game_mode_frame begins (console.c),
+  so the play's first frame has its sides; the spawns' entry points stay WIDE's (put_in_spawn). prop_leave is the
+  console's now (replaced.txt): a prop's leave x is data (its props table entry, a byte times 16), so the decomp
+  keeps it; in WIDE the prop goes past it less the left side, signed (stage 4's in 20:9 went at x 003F).
+  - Checked: the 25 scenarios identical after the merge and after prop_leave; WIDE off, stage 2's frames 13000-16300
+    identical to this morning's build; SIMPSONS_WIDE_AUDIT on the 8 stage scripts in 16:9, 16:10 and 20:9: no object
+    drawn only as it comes in to the board, stage 4's figure and props no longer gone in a side, the rest gone in a
+    side as in the board too (enemies beaten, obstacles breaking, a shot past WIDE's right side). Seen, not changed:
+    an enemy knocked to the right stops at 0180, the board's edge (still in sight). Not checked on a device.

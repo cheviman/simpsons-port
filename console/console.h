@@ -257,6 +257,7 @@ extern const char *const console_difficulty_names[CONSOLE_DIFFICULTIES];
    players' boxes' band onto the video (simpsons/video.h), and the layers' columns the wider screen shows that the
    game does not draw that far, from the same maps */
 void console_wide_frame(void);
+void wide_screen_sides(void);
 
 /* The window's picture, in the game's pixels: 320, or WIDE's (358 for 16:10, 398 for 16:9, 496 for 20:9: the middle of
    the frames, which have 32, 48 or 88 columns more at each side) */

@@ -28,6 +28,14 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
   Edition) and `simpsons-arcade.nro` (Arcade Game), with no space in their names. A forwarder (Sphaira's) hands the
   .nro's path to the Homebrew loader, which cut it at the first space and stopped with error 2002-6005. Replace the old
   `The Simpsons ... .nro` files on the SD card with these, and make the forwarder again.
+- **WIDE, the screen's edges in every stage** (the players' issue 29, reported again and again: things that vanished or
+  never showed at WIDE's sides): the game decides when an object leaves the screen with numbers written in each of
+  its routines, the cabinet's edges; WIDE moved them one routine at a time. They are now named in one place, and WIDE
+  moves them all by its sides, left and right apart (the cemetery's enemies come in from the right). Among those it
+  moved now: stage 4's figures behind the bar, which vanished in the left side, the stages' props and posters, doors,
+  birds, Sideshow Bob, the woman in the apron, Marge's cloud. A check that plays every stage in 16:9, 16:10 and 20:9
+  finds nothing vanishing at WIDE's sides now but what vanishes in the cabinet's part too (enemies beaten there,
+  obstacles breaking).
 - **WIDE, stage 2: the fight with Krusty's balloon** (the players' issue 29): the camera stops at the map's right end
   for it, so all of WIDE's sides are at the left, over map the cabinet never shows in the fight: the fun house's white
   wall with its green porthole beside the deck, and, once the deck gives way, its broken floor in black and lines.
