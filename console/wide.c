@@ -1087,9 +1087,9 @@ static void climb_fill(int left, int right)
    stop): WIDE's sides are all at the left, the map's columns the camera passed, which the cabinet never shows in the
    fight: the fun house's white wall and its porthole beside the deck, the trees and the Ferris wheel, and after the
    boss (stage_2_after_boss: the void's area drawn at the boss's place) the broken deck's columns past its own. Sebas
-   saw them in 16:9 ("tendríamos que hacer como hicimos con el segasonic de reconstruir el margen"): from the camera's
-   stop there (the stage entry's check, as camera_room reads it), each row of both layers' ring goes on leftwards as
-   the repeat of its cells the board shows (the period, of 1 to 16 cells, that most of the board's first 16 hold for;
+   saw them in 16:9 ("tendríamos que hacer como hicimos con el segasonic de reconstruir el margen"): while the
+   camera is in the boss's room (boss_shown_from), each row of both layers' ring goes on leftwards, from the first map
+   column the cabinet can show there, as the repeat of its cells (the period, of 1 to 16 cells, that most of 16 hold for;
    the smaller when alike; the ring's 64 columns room for 32 made, 20:9's 24 or 25), so the deck's planks, its rail and posts, the trees and the sky go on to the picture's left end. The cells
    are the board's tile RAM, as the play's side columns are, made again each frame from the board's columns (which the
    game draws), so a LAN game's devices draw them alike; the floor map stays the map's */
@@ -1099,22 +1099,36 @@ static void climb_fill(int left, int right)
 
 static int boss_fill_end[2] = { -1, -1 };    /* (each layer's first map pixel past the cells made: console_wide_check) */
 
-static bool boss_sides(void)
+/* The camera's room for the boss: its stage entry stops it at the right within a screen of the map's end (the boss's
+   place, 074F), and going back at the left (0700: a player walking left brings it there, Sebas: "te pasa porque tenés
+   a Bart sobre toda la parte derecha del mapa"). What the cabinet can show of the map begins at that left stop past its
+   black edge (0710): the map pixel the sides are made of the cells from, wherever the camera is in its room, so
+   nothing changes as it moves; -1 out of the fight */
+static int boss_shown_from(void)
 {
 	const int data = rom16(STAGE_RECORDS_BANK, (uint16_t)(stage_record_entry + 2u));
-	const int place = data < 0 ? -1 : rom16(STAGE_RECORDS_BANK, (uint16_t)(data + 1));
+	const layer_map_area map = rings[camera_main_layer ? 1 : 0].known ? map_of(camera_main_layer ? 1 : 0)
+		: (layer_map_area){ 0 };
+	int right, left;
 
-	return game_step == STAGE_2_STEP && wide_left_now > 0 && data >= 0
-		&& rom8(STAGE_RECORDS_BANK, (uint16_t)data) == (int)CHECK_STOP && place >= 0 && place <= (int)(uint16_t)camera_x;
+	if (game_step != STAGE_2_STEP || wide_left_now <= 0 || data < 0 || !map.known
+		|| rom8(STAGE_RECORDS_BANK, (uint16_t)data) != (int)CHECK_STOP)
+		return -1;
+	right = rom16(STAGE_RECORDS_BANK, (uint16_t)(data + 1));
+	if (right < 0 || map.width - (right + SIMPSONS_VIDEO_WIDTH) >= SIMPSONS_VIDEO_WIDTH)
+		return -1;    /* (a stop short of the map's end: the play's, where the map left of it was shown) */
+	left = rom8(STAGE_RECORDS_BANK, (uint16_t)(data + 3)) == (int)CHECK_STOP
+		? rom16(STAGE_RECORDS_BANK, (uint16_t)(data + 4)) : right;
+	return (left < 0 ? right : LEAST(left, right)) + fixed_first;
 }
 
-static void boss_side_fill(void)
+static void boss_side_fill(int shown_from)
 {
 	for (int layer = 0; layer < 2; layer++)
 	{
 		const uint16_t tiles = record_of(layer).tiles;
 		const int x = layer_scroll_x(layer);
-		const int board = x >> 3, first = (x - wide_left_now) >> 3;
+		const int board = (x + shown_from - (int)(uint16_t)camera_x + TILE - 1) >> 3, first = (x - wide_left_now) >> 3;
 
 		boss_fill_end[layer] = -1;
 		if (!rings[layer].known || first >= board || board - first > RING_COLUMNS - BOSS_SCORED - BOSS_PERIOD_MOST)
@@ -1217,8 +1231,10 @@ void console_wide_frame(void)
 			draw_side_columns(layer, &map, wide_left_now, wide_right_now);
 			simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
 		}
-		if (boss_sides())
-			boss_side_fill();    /* (stage 2's boss: its sides of the deck's own cells) */
+		const int boss_from = boss_shown_from();
+
+		if (boss_from >= 0)
+			boss_side_fill(boss_from);    /* (stage 2's boss: its sides of the deck's own cells) */
 		else
 			boss_fill_end[0] = boss_fill_end[1] = -1;
 		simpsons_video_set_fixed((wide_right_now - wide_left_now) / 2, fixed_first, fixed_last);

@@ -846,3 +846,14 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     drawn only as it comes in to the board, stage 4's figure and props no longer gone in a side, the rest gone in a
     side as in the board too (enemies beaten, obstacles breaking, a shot past WIDE's right side). Seen, not changed:
     an enemy knocked to the right stops at 0180, the board's edge (still in sight). Not checked on a device.
+- **22-11-2026, WIDE: stage 2's boss sides wherever the camera is** (Sebas, in the Windows executable with Bart alone:
+  the floor still broken; "te pasa porque tenés a Bart sobre toda la parte derecha del mapa"): the boss's stage entry
+  lets the camera back to 0700 at the left (a player walking left), and boss_side_fill ran only with it at 074F: at
+  0700 the sides were the map's again, the fun house's wall and the lighter sky. boss_shown_from now gives, while the
+  entry is the boss's (a stop within a screen of the map's end), the first map pixel the cabinet can show in its room:
+  the left stop past the black edge (0710); the cells left of it are made from those right of it, wherever the camera
+  is, so nothing changes as it moves.
+  - Checked (the console's headless): stage 2 with Bart alone walking left before the deck gives way (camera 0700,
+    frames 18700-18950) and on the right (18800-18900), and the four players' script in 20:9: the sides the deck, the
+    rail, the trees and the sky, no wall, the broken deck alike; WIDE off, frames 13000-16300 identical. Not checked
+    on a device.

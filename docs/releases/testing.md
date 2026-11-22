@@ -39,8 +39,9 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **WIDE, stage 2: the fight with Krusty's balloon** (the players' issue 29): the camera stops at the map's right end
   for it, so all of WIDE's sides are at the left, over map the cabinet never shows in the fight: the fun house's white
   wall with its green porthole beside the deck, and, once the deck gives way, its broken floor in black and lines.
-  From the camera's stop on, that side now goes on with the deck, its rail, the trees and the sky the cabinet shows,
-  each row repeated leftwards, and the broken deck the same way. In 16:9, 16:10 and 20:9.
+  Through the whole fight, wherever the camera is in it (a player walking left brings it back some way), that side now
+  goes on with the deck, its rail, the trees and the sky the cabinet shows, each row repeated leftwards from the first
+  column the cabinet can show there, and the broken deck the same way. In 16:9, 16:10 and 20:9.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.
