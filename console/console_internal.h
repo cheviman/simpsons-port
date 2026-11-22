@@ -33,7 +33,8 @@
 enum
 {
 	PAGE_PRESENTATION,     /* the Konami presentation at power-on (presentation.c) */
-	PAGE_MENU,             /* ARCADE, MR. PLOW MODE, OPTIONS, EXIT, on the TV (tv.c) */
+	PAGE_MENU,             /* ARCADE, MR. PLOW MODE, MULTIPLAYER, OPTIONS, KONAMI CODE (once the code has been
+	                          entered), EXIT, on the TV (tv.c) */
 	PAGE_MR_PLOW,          /* MR. PLOW MODE: the console's own modes (modes.c) */
 	PAGE_OPTIONS,          /* CONTROLS, the cabinet's settings, VIDEO, VOLUME, the version */
 	PAGE_VIDEO,            /* OPTIONS > VIDEO: the window's size, full screen, the pixels, VSYNC, FPS */
@@ -47,8 +48,7 @@ enum
 	PAGE_LAN_ROOM,         /* and the room's devices */
 	PAGE_KONAMI,           /* the Konami code's page, from the menu: its stage, lives, health and characters
 	                          (konami.c) */
-	PAGE_INTRO,            /* INTRO: STORY, ATTRACT, BACK */
-	PAGE_ATTRACT           /* INTRO > ATTRACT: the cabinet's own attract mode, no menu over it (console.c) */
+	PAGE_ATTRACT           /* the cabinet's own attract mode, no menu over it, till any button (console.c) */
 };
 
 /* The lives a credit gives and the continues after the first credit in a game of the console's own modes (TMNT's
@@ -94,8 +94,8 @@ typedef struct
 	                              the game's own beginning, or a mode's: konami.c), */
 	bool start_pending;        /* and whether it is not yet set in the game started */
 	int mode;                  /* the game being started or played is MR. PLOW MODE's (MODE_*: modes.c) */
-	bool code_entered;         /* the Konami code was entered on the menu: its page's lives, health and characters
-	                              hold in MR. PLOW MODE's games too */
+	bool code_entered;         /* KONAMI CODE's page was opened (the code, or its menu line): its lives, health
+	                              and characters hold in MR. PLOW MODE's games too */
 	bool lan_start_due;        /* a LAN game's board reset: ARCADE's game started for the host as the attract mode
 	                              comes (console_lan_power_on) */
 } console_state;
@@ -214,8 +214,9 @@ int konami_stage_step(int stage);
 /* On the menu: whether this frame's presses complete the code (up, up, down, down, left, right, left, right, B, A:
    jump, attack), from any player's controls or the keyboard */
 bool konami_code_entered(uint32_t pressed);
-/* Its page opened with the coin's sound, from the menu's line 'menu_line' (BACK returns there); its frame and picture */
-void konami_page_open(int menu_line);
+/* Its page opened (the code entered, with the coin's sound, or the menu's KONAMI CODE line; BACK returns to that
+   line); its frame and picture */
+void konami_page_open(void);
 void konami_page_frame(uint32_t pressed);
 void konami_page_overlay(console_picture *frame);
 /* The Konami game's frame before the game's (its stage set once stage 1 is played, its lives and health kept up); its
@@ -235,17 +236,14 @@ void free_play_start(int player);
 void boss_rush_start(int player);
 void bonus_games_start(int player);
 void frank_grimes_start(int player);
-/* The menu's INTRO (or the menu left alone a while), started for 'player': the story before stage 1 alone, the choice
-   made at once under black, then the menu again */
+/* The menu left alone a while (menu.c), started for 'player': the story before stage 1 alone, the choice made at
+   once under black; any button ends it (the menu again), its story's own end goes on to the cabinet's attract mode
+   (console.c) */
 void intro_start(int player);
-/* Whether the character choice is made at once, with no one choosing (INTRO's) */
+/* Whether the intro's game ended at its story's own end, not by a button (console.c: the attract mode next) */
+bool intro_played_through(void);
+/* Whether the character choice is made at once, with no one choosing (the intro's) */
 bool modes_choice_made(void);
-/* INTRO's story over (menu.c): INTRO's page at STORY when it was picked there, else the menu at its INTRO line (the
-   menu left alone) */
-void menu_after_intro(void);
-/* INTRO > ATTRACT (console.c): the cabinet's attract mode from its opening, as after a game, with no menu over it,
-   till a button brings INTRO's page back at ATTRACT */
-void console_attract_watch(void);
 /* The per-game state as a mode's game starts (console_start_game; RESTART's too) */
 void modes_game_starting(void);
 /* Whether the Konami code's page's rules (its lives, health and characters) hold in the game: a mode's, the code

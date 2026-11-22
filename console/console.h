@@ -240,6 +240,7 @@ typedef struct
 	bool demo_sound;       /* the sound in the attract mode (68 + 6) */
 	bool upside_down;      /* the screen flipped (68 + 7) */
 	bool bart_shirt;       /* Bart's shirt in the show's orange (bart_shirt.c); false: the cabinet's light blue */
+	bool konami_code;      /* the Konami code entered once on the menu: its KONAMI CODE line from then on (menu.c) */
 	char name[CONSOLE_NAME_LENGTH + 1];    /* MULTIPLAYER > NAME (A-Z, 0-9, '.', '-' and spaces; none yet: asked for) */
 	bool changed;
 } console_settings_t;

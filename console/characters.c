@@ -144,7 +144,7 @@ void choice_frame(const uint32_t player_pressed[CONSOLE_PLAYERS])
 		step_timer = (uint16_t)((step_timer & 0xFFu) | PORTRAITS_WAIT_TIME << 8);
 	if (console.restarting || modes_choice_made())
 	{
-		/* (RESTART: what each one played; INTRO: the player's Marge, the choice under black) */
+		/* (RESTART: what each one played; the intro: the player's Marge, the choice under black) */
 		console.restarting = false;
 		for (int player = 0; player < CONSOLE_PLAYERS; player++)
 			if (console.choice_character[player] >= 0 && !console.choice_picked[player])

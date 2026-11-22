@@ -857,3 +857,23 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     frames 18700-18950) and on the right (18800-18900), and the four players' script in 20:9: the sides the deck, the
     rail, the trees and the sky, no wall, the broken deck alike; WIDE off, frames 13000-16300 identical. Not checked
     on a device.
+- **22-11-2026, the menu without INTRO, and the Konami code kept on it** (Sebas, in the Windows executable: "sacá la
+  opción intros, no las quiero seleccionables; la idea era que si no hacés nada en el modo Mr. Plow el juego arranque
+  solo como pasa con el arcade, el modo demo, muestra una intro de los personajes y juega ... y si apretás algo, que
+  lo saque"; "el konami code, ponelo como el tmnt, que se habilita opción en el menú y queda persistente"):
+  - The menu is ARCADE, MR. PLOW MODE, MULTIPLAYER, OPTIONS, EXIT: INTRO's line and page (STORY, ATTRACT, BACK) are
+    gone. The menu left alone IDLE_FRAMES plays the story before stage 1 as before (intro_start), and its own end
+    (stage 1 next) goes on to the cabinet's attract mode (attract_watch: its characters, the title, the demo, the
+    ranking, round again), as after the presentation at power-on. Any button, a direction too, ends either and brings
+    the menu back (before: BACK alone left the story, the attack, jump and START the attract mode).
+  - The Konami code entered on the menu sets console_settings.konami_code, which the window keeps in simpsons.ini
+    (`konami_code=1`), and the menu has a KONAMI CODE line from then on, after OPTIONS (menu_lines, menu_item: EXIT a
+    line down); the code opens the page with the coin's sound as before, the line opens it too, and BACK returns to
+    the line. tmnt-port keeps nothing (its code opens its level select each time, no line); kept here as Sebas asked.
+    The window's --settings FILE reads and writes the settings there, a scripted run's too, for the check.
+  - Checked: simpsons_console_headless, the menu without INTRO; left alone, the story at frame 2100 and the attract
+    mode from 3500 (the characters' presentation at 4500); LEFT during the story (2300) and DOWN in the attract mode
+    (4000) give the menu; the code at 400-436 opens KONAMI CODE, BACK gives the menu with its line chosen, DOWN EXIT,
+    UP and ACCEPT the page again. The window with --settings twice: the code written as `konami_code=1`, the next
+    run's menu with the line and no code entered. The arcade build compiled, its code untouched (the 25 scenarios not
+    run: Sebas, "no es necesario los 25 escenarios si es la intro"). Not checked on a device.

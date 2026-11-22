@@ -176,16 +176,25 @@ void bonus_games_start(int player)
 	console_start_game(player, STEP_BONUS_1, MODE_LIVES, mode_continues());    /* (konami.c's start at a step) */
 }
 
-/* INTRO (the players' issue 8: "Intro Movie watchable within The Simpsons Console Version"; Sebas: "Solo INTRO en el
-   menú", and "si esta inactivo, que meta una intro"): the story before stage 1, Smithers taking the diamond and
-   Maggie with it. A game started as ARCADE's, its choice made at once (the player's Marge) and everything under
-   black and silence (modes_covering) but the story; as the story ends (stage 1 next: its own end, or START or the
-   attack skipping it, as in any scene) or BACK leaves it, the game ends and the menu comes back at INTRO */
+/* The intro, the menu left alone (the players' issue 8: "Intro Movie watchable within The Simpsons Console Version";
+   Sebas: "si esta inactivo, que meta una intro"; no line of its own on the menu, Sebas: "sacá la opción intros, no
+   las quiero seleccionables"): the story before stage 1, Smithers taking the diamond and Maggie with it. A game
+   started as ARCADE's, its choice made at once (the player's Marge) and everything under black and silence
+   (modes_covering) but the story. Any button ends it, the menu again (Sebas: "si apretás algo, que lo saque"); the
+   story's own end (stage 1 next) ends the game too, and the cabinet's attract mode comes on (console.c) */
+static bool intro_left;    /* the intro ended by a button, not by its story's end */
+
 void intro_start(int player)
 {
 	console.konami = false;
 	console.mode = MODE_INTRO;
+	intro_left = false;
 	console_start_game(player, STEP_FIRST_STAGE, LIVES_CABINET, CONTINUES_UNLIMITED);
+}
+
+bool intro_played_through(void)
+{
+	return !intro_left;
 }
 
 bool modes_choice_made(void)
@@ -193,7 +202,7 @@ bool modes_choice_made(void)
 	return console.mode == MODE_INTRO;
 }
 
-/* (INTRO's game showing its story: not before it, the start and the choice under black) */
+/* (the intro's game showing its story: not before it, the start and the choice under black) */
 static bool intro_story(void)
 {
 	return console.page == PAGE_GAME && game_mode == GAME_MODE_GAME && mode_phase == PHASE_STEPS
@@ -202,11 +211,12 @@ static bool intro_story(void)
 
 static bool intro_frame(void)
 {
-	const bool leaving = (console.pressed & ACTION_BIT(ACTION_BACK)) != 0;
+	const bool leaving = console.pressed != 0;
 
-	console.pressed = 0;    /* (the game's own controls stay theirs: START and the attack skip the story) */
+	console.pressed = 0;
 	if (leaving || (mode_phase == PHASE_STEPS && game_step >= STEP_FIRST_STAGE))
 	{
+		intro_left = leaving;
 		console_end_game();
 		return true;
 	}
@@ -502,7 +512,7 @@ void modes_overlay(console_picture *frame)
 	draw_fill(frame, PICTURE_FIRST(frame), 0, PICTURE_END(frame) - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT,
 		0x000000u);
 	if (console.mode != MODE_BOSS_RUSH)
-		return;    /* (INTRO's: black alone till its story) */
+		return;    /* (the intro's: black alone till its story) */
 	draw_game_letters_centred(frame, CARD_HEADING_Y, 2, CARD_COLOUR, "BOSS RUSH");
 	snprintf(text, sizeof(text), "BOSS %d OF %d", boss + 1, RUSH_BOSSES);
 	draw_game_letters_centred(frame, CARD_NUMBER_Y, 1, CARD_WHITE, text);

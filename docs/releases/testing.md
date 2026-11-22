@@ -42,6 +42,12 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
   Through the whole fight, wherever the camera is in it (a player walking left brings it back some way), that side now
   goes on with the deck, its rail, the trees and the sky the cabinet shows, each row repeated leftwards from the first
   column the cabinet can show there, and the broken deck the same way. In 16:9, 16:10 and 20:9.
+- **The menu without INTRO, the game showing itself when left alone**: INTRO and its page (STORY, ATTRACT) are gone
+  from Mr. Plow Edition's menu. Left alone 30 seconds, the menu plays the story before stage 1, and once the story is
+  over the arcade's own attract mode, its characters and its demo, as the cabinet does; any button, a direction too,
+  brings the menu back.
+- **The Konami code kept on the menu**: entered once, it puts a KONAMI CODE line on the menu, after OPTIONS, which
+  stays there from then on (`konami_code=1` in simpsons.ini) and opens the code's page.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.

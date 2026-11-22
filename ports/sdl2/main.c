@@ -16,7 +16,7 @@
  *                          [--actions FILE]
  *                          [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start]
  *                          [--stereo] [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]]
- *                          [--slow MS] [--no-vsync]
+ *                          [--settings FILE] [--slow MS] [--no-vsync]
  *
  *    The Simpsons Arcade Game, the arcade game as it is (runtime/src/game.c and the program): this file only wraps it.
  *    When each frame is done (game_frame_done) the port reads the keyboard and the game controllers into the board's
@@ -102,11 +102,13 @@
  *    table there in place of simpsons.scores; --state FILE is the pause's saved state in place of simpsons.state, and
  *    with it --state-save FRAME saves the game's state at the end of frame FRAME, --state-load loads it at the end of
  *    the first frame it can (the boot over), so that a run from a state compares with the one it was saved in, frame by
- *    frame (the state keeps a script's place too).
+ *    frame (the state keeps a script's place too). --settings FILE reads OPTIONS' settings from FILE and writes them
+ *    there in place of simpsons.ini, a scripted run's too (a check's: the menu's KONAMI CODE line kept from one run to
+ *    the next).
  *    Each picture written says on the standard output where the console stands. A scripted run (--script, --actions,
  *    the hashes, --video-dump) reads and writes no settings, controls, EEPROM, high scores or state: it starts from the
  *    factory's, but with --eeprom FILE (The Simpsons Arcade Game), which keeps the EEPROM there in place of simpsons.nv,
- *    --scores FILE and --state FILE (The Simpsons), for checks.
+ *    --scores FILE, --state FILE and --settings FILE (The Simpsons), for checks.
  *
  *    Controls (controls.ini; the cabinet has four players, each with a coin slot and a start button, which the
  *    factory settings leave unused: a coin and the attack button bring a player in; player 1 is Marge, 2 Homer, 3
@@ -213,7 +215,7 @@
 #define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--assets FOLDER|PACK] [--script FILE] [--fast] [--actions FILE]" \
 	" [--video-dump FRAME ... --video-dir DIR] [--wide KIND] [--wide-check] [--arcade-start] [--stereo]" \
 	" [--scores FILE] [--state FILE [--state-save FRAME] [--state-load]] [--lan-name NAME] [--lan-hashes FILE]" \
-	" [--slow MS] [--no-vsync]"
+	" [--settings FILE] [--slow MS] [--no-vsync]"
 #else
 #define USAGE "Usage: \"" TITLE "\"" ROM_SET_USAGE " [--script FILE [--fast]] [--hashes FILE] [--video-hashes FILE]" \
 	" [--sound-hashes FILE] [--service] [--assets FOLDER|PACK] [--video-dump FRAME ... --video-dir DIR] [--eeprom FILE]" \
@@ -2132,6 +2134,7 @@ static void save_eeprom(void)
 
 #ifdef SIMPSONS_CONSOLE
 static char settings_path[1100];
+static const char *settings_option;    /* --settings FILE: the settings read and written there, a scripted run's too */
 
 static void save_settings(void)
 {
@@ -2139,7 +2142,8 @@ static void save_settings(void)
 	char continues[16] = "unlimited";    /* (ARCADE's continues: unlimited or 0-9) */
 	FILE *output;
 
-	if (scripted || !settings_path[0] || console_lan_playing() || (output = fopen(settings_path, "w")) == NULL)
+	if ((scripted && !settings_option) || !settings_path[0] || console_lan_playing()
+		|| (output = fopen(settings_path, "w")) == NULL)
 		return;    /* (a LAN game's: the host's settings, not this device's) */
 	if (settings->game_continues != CONSOLE_CONTINUES_UNLIMITED)
 		snprintf(continues, sizeof(continues), "%d", settings->game_continues);
@@ -2164,13 +2168,15 @@ static void save_settings(void)
 		"; screen: normal or upside down (the cabinet's)\nscreen=%s\n"
 		"; sound: mono (as the cabinet is wired) or stereo\nsound=%s\n"
 		"; bart_shirt: orange (Bart's shirt orange, as on the show, Barney's salmon) or arcade (the cabinet's)\n"
-		"bart_shirt=%s\n",
+		"bart_shirt=%s\n"
+		"; konami_code: 1 the Konami code has been entered on the menu (its KONAMI CODE line), 0 not yet\n"
+		"konami_code=%d\n",
 		settings->window_scale, settings->full_screen && !launcher_full_screen, console_pixel_names[settings->pixels],
 		settings->integer_scale,
 		console_wide_names[settings->wide], settings->vsync, settings->volume, settings->fps,
 		console_difficulty_names[settings->game_difficulty], settings->game_lives, continues, settings->demo_sound,
 		settings->upside_down ? "upside down" : "normal", settings->stereo ? "stereo" : "mono",
-		settings->bart_shirt ? "orange" : "arcade");
+		settings->bart_shirt ? "orange" : "arcade", settings->konami_code);
 	if (settings->name[0])
 		fprintf(output, "; name: this device's in MULTIPLAYER's rooms\nname=%s\n", settings->name);
 	fclose(output);
@@ -2235,6 +2241,8 @@ static void load_settings(void)
 			snprintf(settings->name, sizeof(settings->name), "%s", line + 5);    /* (MULTIPLAYER > NAME) */
 		else if (strncmp(line, "bart_shirt=", 11) == 0)
 			settings->bart_shirt = strcmp(line + 11, "arcade") != 0;    /* (Bart's shirt: orange, or the arcade's) */
+		else if (sscanf(line, "konami_code=%d", &number) == 1)
+			settings->konami_code = number != 0;    /* (the menu's KONAMI CODE line) */
 		else if (strncmp(line, "difficulty=", 11) == 0)
 		{
 			for (int kind = 0; kind < CONSOLE_DIFFICULTIES; kind++)
@@ -3314,6 +3322,10 @@ int main(int argc, char **argv)
 		}
 		else if (strcmp(argv[index], "--scores") == 0 && index + 1 < argc)
 			scores_option = argv[++index];
+#ifdef SIMPSONS_CONSOLE
+		else if (strcmp(argv[index], "--settings") == 0 && index + 1 < argc)
+			settings_option = argv[++index];
+#endif
 		else if (strcmp(argv[index], "--state") == 0 && index + 1 < argc)
 			state_option = argv[++index];
 		else if (strcmp(argv[index], "--state-save") == 0 && index + 1 < argc)
@@ -3417,6 +3429,11 @@ int main(int argc, char **argv)
 #endif
 			snprintf(scores_path, sizeof(scores_path), "%s" SCORES_FILE, saves ? saves : "");
 			snprintf(state_path, sizeof(state_path), "%s" STATE_FILE, saves ? saves : "");
+		}
+		else if (settings_option)
+		{
+			snprintf(settings_path, sizeof(settings_path), "%s", settings_option);    /* (--settings: a check's) */
+			load_settings();
 		}
 		if (scores_option)
 			snprintf(scores_path, sizeof(scores_path), "%s", scores_option);    /* (--scores: a check's) */

@@ -1,12 +1,12 @@
 /**
  *    Name:        menu.c
- *    Description: the console's menus over the attract mode: the menu (ARCADE, MR. PLOW MODE, MULTIPLAYER, INTRO,
- *                 OPTIONS, EXIT),
+ *    Description: the console's menus over the attract mode: the menu (ARCADE, MR. PLOW MODE, MULTIPLAYER, OPTIONS,
+ *                 KONAMI CODE once the code has been entered, EXIT),
  *                 MR. PLOW MODE's page, OPTIONS with VIDEO and CONTROLS, the Konami code's page, and the pause's
  *                 picture
  *    Version:     0.1.0
  *    Created:     13-11-2026
- *    Modified:    15-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    license:BSD-3-Clause
@@ -15,9 +15,10 @@
  *    line and "@cheviman" under them (Sebas: "para el menu, usemos la tele, que tiene de titulos para presentarlo");
  *    the other pages write over the TV darkened. All of them with the game's own letters (draw.c). ARCADE starts the
  *    arcade game at home for the player who picks it: a coin, then the character choice on the game's portraits
- *    (characters.c); the others come in with START. INTRO plays the story before stage 1 and comes back (modes.c),
- *    and so does the menu left alone IDLE_FRAMES (the players' issue 8; Sebas: "si esta inactivo, que meta una
- *    intro"). OPTIONS changes the cabinet's settings by the test mode's names (8-3 DIFFICULTY,
+ *    (characters.c); the others come in with START. The menu left alone IDLE_FRAMES plays the story before stage 1
+ *    (modes.c), then the cabinet's attract mode, as a cabinet shows itself, till any button brings the menu back (the
+ *    players' issue 8; Sebas: "si esta inactivo, que meta una intro"; no INTRO line to pick it, Sebas: "sacá la opción
+ *    intros, no las quiero seleccionables"). OPTIONS changes the cabinet's settings by the test mode's names (8-3 DIFFICULTY,
  *    8-2 NUMBER OF PLAYERS as LIVES, 8-4 SOUND IN ATTRACT MODE as DEMO SOUND, 8-5 VIDEO SCREEN FLIP as SCREEN), which
  *    go into the game when OPTIONS closes; CONTINUES (ARCADE's, 0 to 9 or UNLIMITED), VIDEO, VOLUME and SOUND (MONO,
  *    the board's, or STEREO) the port's. The
@@ -28,8 +29,10 @@
  *    attack, the cabinet's two buttons as a pad has them; from any player's controls or the keyboard) opens the
  *    KONAMI CODE page with the coin's sound: STAGE (each stage and bonus game, by its title card's name), LIVES
  *    INFINITE or NORMAL, HEALTH INFINITE or NORMAL, REPEAT CHARACTERS ON or OFF, START (its game: the character choice
- *    on the portraits, then konami.c), BACK (to the menu's line the code was entered on); the menu has no line of it,
- *    as tmnt-port's level select. What it sets is the console's, not kept in simpsons.ini (tmnt-port's).
+ *    on the portraits, then konami.c), BACK (to the menu's KONAMI CODE line). The code entered once puts the KONAMI
+ *    CODE line on the menu, after OPTIONS, and the port keeps it in simpsons.ini (console_settings.konami_code: Sebas,
+ *    "que se habilita opción en el menú y queda persistente"); the line opens the same page. What the page sets is
+ *    the console's, not kept.
  *
  *    On the devices (as tmnt-port's): no EXIT where the system leaves the game (SIMPSONS_SYSTEM_EXIT: the Switch's
  *    HOME), and no CONTROLS where the device's controls are fixed (SIMPSONS_HANDHELD), whose VIDEO has PIXELS,
@@ -50,11 +53,11 @@
 #define HEADING_COLOUR      0xFFD840u
 #define SIGNATURE_COLOUR    0xD0D0D0u
 #define COPYRIGHT_COLOUR    0xD0D0D0u
-#define MENU_Y              90           /* the menu's lines, on the TV's screen under the title's logo (six: */
-#define ITEM_STEP           11           /* their copyright and signature in the screen, INTRO among them) */
+#define MENU_Y              90           /* the menu's lines, on the TV's screen under the title's logo (six at */
+#define ITEM_STEP           11           /* most: their copyright and signature in the screen) */
 #define COPYRIGHT           "[ 1991 KONAMI"    /* the title's copyright line, Konami's (game text 2's: '[' its
                                                   copyright sign), under the menu */
-#define COPYRIGHT_Y         (MENU_Y + MENU_ITEMS * ITEM_STEP + 4)
+#define COPYRIGHT_Y         (MENU_Y + menu_lines() * ITEM_STEP + 4)
 #define SIGNATURE           "@cheviman  V" SIMPSONS_VERSION    /* the port's author, under it (as tmnt-port's), and
                                                             its release */
 #define SIGNATURE_Y         (COPYRIGHT_Y + 12)
@@ -67,16 +70,18 @@
 #define LINE_LEFT           40
 #define LINE_RIGHT          (SCREEN_WIDTH - 40)
 #define STARTING_FRAMES     600          /* a game that has not started by then: back to the menu */
-#define IDLE_FRAMES         1776         /* the menu left alone this long (30 seconds): INTRO plays */
+#define IDLE_FRAMES         1776         /* the menu left alone this long (30 seconds): the story and the attract
+                                            mode play */
 #define PAUSE_Y             76           /* the pause's PAUSE, and its lines under it */
 #define PAUSE_LINES_Y       108
 #define PAUSE_LINE_STEP     14
 
-/* (a device's lines past their lists, never chosen: SIMPSONS_SYSTEM_EXIT, SIMPSONS_HANDHELD) */
+/* (a device's lines past their lists, never chosen: SIMPSONS_SYSTEM_EXIT, SIMPSONS_HANDHELD. The menu's KONAMI CODE
+   only once the code has been entered: menu_lines, menu_item) */
 #ifdef SIMPSONS_SYSTEM_EXIT
-enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_INTRO, MENU_OPTIONS, MENU_ITEMS, MENU_EXIT = 100 };
+enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_OPTIONS, MENU_KONAMI, MENU_ITEMS, MENU_EXIT = 100 };
 #else
-enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_INTRO, MENU_OPTIONS, MENU_EXIT, MENU_ITEMS };
+enum { MENU_ARCADE, MENU_MR_PLOW, MENU_LAN, MENU_OPTIONS, MENU_KONAMI, MENU_EXIT, MENU_ITEMS };
 #endif
 enum { PLOW_FREE_PLAY, PLOW_BOSS_RUSH, PLOW_BONUS_GAMES, PLOW_FRANK_GRIMES, PLOW_BACK, PLOW_ITEMS };    /* (the
 	modes' order: MODE_FREE_PLAY on, console.c's way back to the page) */
@@ -98,22 +103,15 @@ enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO
 	VIDEO_BACK, VIDEO_ITEMS };
 #endif
 enum { KONAMI_STAGE, KONAMI_LIVES, KONAMI_HEALTH, KONAMI_REPEATS, KONAMI_START, KONAMI_BACK, KONAMI_ITEMS };
-enum { INTRO_STORY, INTRO_ATTRACT, INTRO_BACK, INTRO_ITEMS };
 
 #ifdef SIMPSONS_SYSTEM_EXIT
-static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "INTRO", "OPTIONS" };
+static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "OPTIONS",
+	"KONAMI CODE" };
 #else
-static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "INTRO", "OPTIONS",
-	"EXIT" };
+static const char *const menu_items[MENU_ITEMS] = { "ARCADE", "MR. PLOW MODE", "MULTIPLAYER", "OPTIONS",
+	"KONAMI CODE", "EXIT" };
 #endif
-static int idle_frames;    /* the menu's frames with nothing pressed (IDLE_FRAMES: INTRO) */
-static const char *const intro_items[INTRO_ITEMS] = { "STORY", "ATTRACT", "BACK" };
-static const char *const intro_about[INTRO_ITEMS][2] = {
-	{ "SMITHERS TAKES THE DIAMOND", "AND MAGGIE WITH IT" },
-	{ "THE ARCADE DEMO AND HIGH SCORES", "ANY BUTTON COMES BACK" },
-	{ "", "" },
-};
-static bool story_picked;    /* INTRO's STORY picked on its page (not the menu left alone): back to the page */
+static int idle_frames;    /* the menu's frames with nothing pressed (IDLE_FRAMES: the story and the attract mode) */
 static const char *const plow_items[PLOW_ITEMS] = { "FREE PLAY", "BOSS RUSH", "BONUS GAMES", "FRANK GRIMES LIFE",
 	"BACK" };
 /* (what the chosen one is, under the lines) */
@@ -193,11 +191,23 @@ static bool chosen_now(uint32_t pressed)
 	return (pressed & (ACTION_BIT(ACTION_ACCEPT) | ACTION_BIT(ACTION_START))) != 0;
 }
 
+/* The menu's lines shown, and the item on a line: KONAMI CODE's only once the code has been entered (kept in
+   simpsons.ini), EXIT up a line without it */
+static int menu_lines(void)
+{
+	return console_settings.konami_code ? MENU_ITEMS : MENU_ITEMS - 1;
+}
+
+static int menu_item(int line)
+{
+	return !console_settings.konami_code && line >= MENU_KONAMI ? line + 1 : line;
+}
+
 static void menu_page(uint32_t pressed)
 {
 	if (!chosen_now(pressed))
 		return;
-	switch (console.choice)
+	switch (menu_item(console.choice))
 	{
 		case MENU_ARCADE:
 			console_start_arcade(console.last_presser);    /* (its coin: PAGE_STARTING) */
@@ -208,45 +218,16 @@ static void menu_page(uint32_t pressed)
 		case MENU_LAN:
 			open_page(PAGE_LAN, 0);
 			break;
-		case MENU_INTRO:
-			open_page(PAGE_INTRO, INTRO_STORY);
-			break;
 		case MENU_OPTIONS:
 			open_page(PAGE_OPTIONS, 0);
+			break;
+		case MENU_KONAMI:
+			konami_page_open();
 			break;
 		case MENU_EXIT:
 			console.quit = true;
 			break;
 	}
-}
-
-/* INTRO: STORY, the story before stage 1 (modes.c), and ATTRACT, the cabinet's attract mode (console.c, the players'
-   issue 22: "The attract Movie watchable within the intro option"); jump or BACK, the menu again */
-static void intro_page(uint32_t pressed)
-{
-	if ((pressed & ACTION_BIT(ACTION_BACK)) || (chosen_now(pressed) && console.choice == INTRO_BACK))
-	{
-		open_page(PAGE_MENU, MENU_INTRO);
-		return;
-	}
-	if (!chosen_now(pressed))
-		return;
-	if (console.choice == INTRO_STORY)
-	{
-		story_picked = true;
-		intro_start(console.last_presser);
-	}
-	else if (console.choice == INTRO_ATTRACT)
-		console_attract_watch();
-}
-
-void menu_after_intro(void)
-{
-	if (story_picked)
-		open_page(PAGE_INTRO, INTRO_STORY);
-	else
-		open_page(PAGE_MENU, MENU_INTRO);
-	story_picked = false;
 }
 
 /* MR. PLOW MODE: its modes (modes.c), each a game for the player who picks it, the character choice first; jump or
@@ -559,14 +540,12 @@ static void lan_room_page(uint32_t pressed)
 
 /* ---- the Konami code ---- */
 
-/* The last presses, the newest last (0xFF: none, or several at once), one a frame; the menu's line it was entered on
-   (BACK from its page goes back there) */
+/* The last presses, the newest last (0xFF: none, or several at once), one a frame */
 #define CODE_LENGTH         10
 static const uint8_t konami_code[CODE_LENGTH] = { ACTION_UP, ACTION_UP, ACTION_DOWN, ACTION_DOWN, ACTION_LEFT,
 	ACTION_RIGHT, ACTION_LEFT, ACTION_RIGHT, ACTION_BACK, ACTION_ACCEPT };
 static uint8_t code_pressed[CODE_LENGTH];
 static bool code_ready;    /* (none pressed at first: 0xFF set at the first press, no table of the executable's) */
-static int code_choice;
 
 bool konami_code_entered(uint32_t pressed)
 {
@@ -593,12 +572,22 @@ bool konami_code_entered(uint32_t pressed)
 	return true;
 }
 
-void konami_page_open(int menu_line)
+void konami_page_open(void)
 {
-	code_choice = menu_line;
 	console.code_entered = true;    /* (its lives, health and characters for MR. PLOW MODE's games too: modes.c) */
-	queue_sound_always(CODE_SOUND);
 	open_page(PAGE_KONAMI, KONAMI_STAGE);
+}
+
+/* The code entered: the coin's sound, the menu's KONAMI CODE line from now on (the port keeps it), and its page */
+static void konami_code_unlock(void)
+{
+	if (!console_settings.konami_code)
+	{
+		console_settings.konami_code = true;
+		console_settings.changed = true;    /* (simpsons.ini: the line stays after a restart) */
+	}
+	queue_sound_always(CODE_SOUND);
+	konami_page_open();
 }
 
 /* LEFT and RIGHT (or attack) change a line's value; START, or attack on START, starts its game (the character choice);
@@ -610,7 +599,7 @@ void konami_page_frame(uint32_t pressed)
 
 	if ((pressed & ACTION_BIT(ACTION_BACK)) || (chosen_now(pressed) && console.choice == KONAMI_BACK))
 	{
-		open_page(PAGE_MENU, code_choice);
+		open_page(PAGE_MENU, MENU_KONAMI);
 		return;
 	}
 	if ((pressed & ACTION_BIT(ACTION_START)) || (chosen_now(pressed) && console.choice == KONAMI_START))
@@ -761,11 +750,8 @@ static void starting_page(void)
 {
 	if (console.page_frames > STARTING_FRAMES)
 	{
-		if (console.mode == MODE_INTRO)
-			menu_after_intro();
-		else
-			open_page(PAGE_MENU, MENU_ARCADE);
-		console.mode = MODE_NONE;    /* (INTRO's black off) */
+		open_page(PAGE_MENU, MENU_ARCADE);
+		console.mode = MODE_NONE;    /* (the intro's black off) */
 	}
 }
 
@@ -781,7 +767,7 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 		console_lan_update();    /* (the rooms' datagrams, the game's start) */
 	switch (page)
 	{
-		case PAGE_MENU: lines = MENU_ITEMS; break;
+		case PAGE_MENU: lines = menu_lines(); break;
 		case PAGE_MR_PLOW: lines = PLOW_ITEMS; break;
 		case PAGE_LAN: lines = LAN_ITEMS; break;
 		case PAGE_LAN_ROOMS: lines = console_lan_room_count() + 1; break;
@@ -789,7 +775,6 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 		case PAGE_OPTIONS: lines = OPTION_ITEMS; break;
 		case PAGE_VIDEO: lines = VIDEO_ITEMS; break;
 		case PAGE_KONAMI: lines = KONAMI_ITEMS; break;
-		case PAGE_INTRO: lines = INTRO_ITEMS; break;
 		default: break;
 	}
 	if (lines)
@@ -799,12 +784,12 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 		if (pressed & ACTION_BIT(ACTION_DOWN))
 			console.choice = step_value(console.choice, 1, 0, lines - 1);
 	}
-	/* (the menu left alone, nothing pressed for IDLE_FRAMES: INTRO, Sebas: "si esta inactivo, que meta una intro") */
+	/* (the menu left alone, nothing pressed for IDLE_FRAMES: the story, then the attract mode; Sebas: "si esta
+	   inactivo, que meta una intro") */
 	idle_frames = page == PAGE_MENU && !pressed ? idle_frames + 1 : 0;
 	if (idle_frames >= IDLE_FRAMES)
 	{
 		idle_frames = 0;
-		story_picked = false;
 		intro_start(0);
 		return;
 	}
@@ -812,16 +797,12 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 	{
 		case PAGE_MENU:
 			if (konami_code_entered(pressed))
-				konami_page_open(console.choice);    /* (its ups and downs took the line there and back, its A picks
-				                                        nothing) */
+				konami_code_unlock();    /* (its ups and downs took the line there and back, its A picks nothing) */
 			else
 				menu_page(pressed);
 			break;
 		case PAGE_MR_PLOW:
 			plow_page(pressed);
-			break;
-		case PAGE_INTRO:
-			intro_page(pressed);
 			break;
 		case PAGE_KONAMI:
 			konami_page_frame(pressed);
@@ -889,21 +870,11 @@ static void option_line(const char *const *items, int index, const char *value)
 /* The menu on the TV's screen (the TV and the title's logo on it: tv.c) */
 static void menu_screen(void)
 {
-	list_lines(menu_items, MENU_ITEMS, MENU_Y, ITEM_STEP);
+	for (int line = 0; line < menu_lines(); line++)
+		draw_game_letters_centred(target, MENU_Y + line * ITEM_STEP, 1,
+			line == console.choice ? CHOSEN_COLOUR : ITEM_COLOUR, menu_items[menu_item(line)]);
 	draw_game_letters_centred(target, COPYRIGHT_Y, 1, COPYRIGHT_COLOUR, COPYRIGHT);
 	draw_small_letters_centred(target, SIGNATURE_Y, SIGNATURE_COLOUR, SIGNATURE);
-}
-
-/* INTRO: its heading, its lines centred, and under them what the chosen one is (as MR. PLOW MODE's) */
-#define INTRO_ABOUT_Y       (LINE_Y + INTRO_ITEMS * LINE_STEP + 10)
-
-static void intro_overlay(void)
-{
-	page_box("INTRO", INTRO_ITEMS + 3);
-	list_lines(intro_items, INTRO_ITEMS, LINE_Y, LINE_STEP);
-	for (int line = 0; line < 2; line++)
-		draw_game_letters_centred(target, INTRO_ABOUT_Y + line * 12, 1, 0xC0C0C0u,
-			intro_about[console.choice >= 0 && console.choice < INTRO_ITEMS ? console.choice : INTRO_BACK][line]);
 }
 
 /* MR. PLOW MODE: its heading, its lines centred as the menu's, and under them what the chosen one is */
@@ -1131,7 +1102,7 @@ void menu_overlay(console_picture *frame)
 {
 	target = frame;
 	if (game_mode != GAME_MODE_ATTRACT || console.page == PAGE_ATTRACT)
-		return;    /* (INTRO > ATTRACT: the cabinet's attract mode alone) */
+		return;    /* (the cabinet's attract mode alone: console.c) */
 	if (console.page == PAGE_STARTING || !tv_shown())
 	{
 		/* (the screen cleared for the TV, or for the game's start: black, not the screens the game leaves) */
@@ -1146,9 +1117,6 @@ void menu_overlay(console_picture *frame)
 			break;
 		case PAGE_MR_PLOW:
 			plow_overlay();
-			break;
-		case PAGE_INTRO:
-			intro_overlay();
 			break;
 		case PAGE_OPTIONS:
 			options_overlay();
