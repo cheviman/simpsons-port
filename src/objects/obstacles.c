@@ -1061,7 +1061,7 @@ uint16_t throwable_follow_floor(uint16_t object, uint16_t states)
 }
 
 /* Sets an obstacle up by its spawn's state and, once on screen, raises the floor under it by its height. */
-void obstacle_start(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller)
+void CONSOLE_ORIGINAL(obstacle_start)(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller)
 {
 	uint16_t u = (uint16_t)*p_u;
 	uint8_t animation = 0, new_y = 0;

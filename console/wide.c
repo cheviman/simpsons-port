@@ -1803,6 +1803,29 @@ uint16_t enemy_remove_off_screen(uint16_t object, uint16_t target)
 
 /* The game's remove_off_screen (system/jump_table.c): the object removed past the wider screen's left side or 64
    pixels past its right one */
+/* Whether an object is held by its carrier, still in play beside it: stage 2's fat goons coming in from the left
+   past WIDE's left side pick up the obstacle they carry on their heads (fat_goon_thrower_pick_up) some pixels past
+   it, where the board's has it right at its own limit; it was taken off at once and the goon walked in holding
+   nothing (the players' issue 29). Thrown, it leaves its carrier and goes out as on the board */
+#define HELD_REACH          0x40         /* (on its head, as it walks: some 0x10 to 0x23 apart) */
+
+static bool held_in_sight(uint16_t object)
+{
+	if (OBJECT(object)->carried == 0u)
+		return false;
+	for (int number = 0; number < OBJECTS; number++)
+	{
+		/* (its carrier keeps it in its own fields, not in the obstacle's parent) */
+		const uint16_t carrier = (uint16_t)OBJECT_ADDRESS(number);
+		const int apart = (int16_t)OBJECT(object)->x - (int16_t)OBJECT(carrier)->x;
+
+		if (carrier != object && OBJECT(carrier)->flags != 0u
+			&& OBJECT(carrier)->fat_goon_thrower.carried_object == object && apart <= HELD_REACH && apart >= -HELD_REACH)
+			return true;
+	}
+	return false;
+}
+
 uint32_t remove_off_screen(uint16_t object, uint32_t carry)
 {
 	int16_t object_x = 0;
@@ -1814,7 +1837,7 @@ uint32_t remove_off_screen(uint16_t object, uint32_t carry)
 	if (OBJECT(object)->flags != 0u)
 	{
 		object_x = (int16_t)OBJECT(object)->x;
-		carry = object_x >= OBJECT_LEFT - side_left && object_x < 0x1C0 + side_right;
+		carry = (object_x >= OBJECT_LEFT - side_left && object_x < 0x1C0 + side_right) || held_in_sight(object);
 		if (!carry)
 			OBJECT(object)->flags = 0u;
 	}
@@ -1842,6 +1865,36 @@ void stop_beyond_screen_edge(uint16_t object)
 }
 
 /* The game's enemy_on_screen (objects/object_setup.c): 16 pixels in from the wider screen's edges */
+/* An obstacle's start (list 1's type 00: stage 2's mailbox by Otto's stall), which waits to put itself up (2 pixels
+   up, shown, the floor under it raised by its height) till its x is short of 0180, the board's right side's sight:
+   in WIDE, short of the wider screen's right side's. As stage 2 began its mailbox stood at 0180, past the board's
+   but in WIDE's sight: unseen, and its floor not raised, till the scroll brought it in (the players' issue 29) */
+#define OBSTACLE_SHOWN      0x180
+
+void obstacle_start(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller)
+{
+	const int x = (int16_t)OBJECT(object)->x;
+	int side_left, side_right;
+
+	play_now(&side_left, &side_right);
+	if (OBJECT(object)->action != 0u && x >= OBSTACLE_SHOWN && x < OBSTACLE_SHOWN + side_right)
+	{
+		/* (the board's own branch, short of 0180) */
+		const uint16_t moved_y = (uint16_t)(OBJECT(object)->y - 2u);
+
+		OBJECT(object)->y = moved_y;
+		OBJECT(object)->animation_flags = 0x80u;
+		obstacle_raise_floor(object, (uint16_t)((moved_y & 0xFFu) | ((uint16_t)OBJECT(object)->obstacle.height << 8)),
+			p_u, p_left_caller);
+		if (*p_left_caller != 0u)
+			*p_left_caller = 0u;
+		else
+			OBJECT(object)->state = (uint8_t)(OBJECT(object)->state + 1u);
+		return;
+	}
+	original_obstacle_start(object, p_u, p_left_caller);
+}
+
 uint32_t enemy_on_screen(uint16_t object)
 {
 	int16_t screen_x = 0;

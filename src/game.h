@@ -2506,7 +2506,7 @@ void throwable_hurt_enemies(uint16_t object);
 uint16_t throwable_rebound(uint16_t object);
 void throwable_fall(uint16_t object);
 uint16_t throwable_follow_floor(uint16_t object, uint16_t states);
-void obstacle_start(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller);
+void CONSOLE_ORIGINAL(obstacle_start)(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller);
 uint16_t obstacle_smashed_steps(uint16_t object);
 uint16_t obstacle_smashed(uint16_t object, uint16_t u);
 void obstacle_smashed_end(uint16_t object);

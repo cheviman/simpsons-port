@@ -10,6 +10,13 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **WIDE, Lisa's box at the top closed at its right** (the players' issue 29): the players' boxes each have their white
   side at the left, and the fourth's right one fell under the cabinet's black edge, so the game never drew it; in WIDE's
   play it is drawn now, as the others are.
+- **WIDE, stage 2's mailbox as the play begins** (the players' issue 29): it waited for the board's right side to put
+  itself up, so in WIDE's wider right side it stayed unseen, with no floor raised under it, till the scroll brought
+  it in. It now puts itself up once in WIDE's sight. (During the walk-in before the play the game has not set it up
+  yet, on the cabinet too, where it is out of sight.)
+- **WIDE, stage 2's fat goons holding nothing** (the players' issue 29): coming in from the left past WIDE's left
+  side, a fat goon picks up the obstacle he carries on his head some pixels past WIDE's left limit, where the cabinet
+  has it right at its own; it was taken off at once, and he walked in holding nothing. It is now kept while he holds it.
 - **WIDE, stage 8: Smithers stuck off the screen** (the players' issue 31): his fight's left wall is at the wider
   screen's left side, a column the cabinet never draws, so on the cabinet he runs well past it and back. WIDE had put
   the wall's floor cells there, and a hit or a jump could leave him inside them, turning at each frame off the screen.
