@@ -3,7 +3,7 @@
  *    Description: each object bank's jump table: the handlers the object lists' dispatchers and the enemies' actions reach
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -2009,7 +2009,7 @@ uint16_t goon_hat_update(uint16_t object, uint8_t state)
 	goon_hat_floor_priority(object);
 	states = object_take_special_hit(object, states);
 	hat_x = OBJECT(object)->x;
-	if (hat_x >= 0x1C0u)
+	if (!X_BETWEEN(hat_x, PAST_LEFT(0x40), PAST_RIGHT(0x40)))
 		OBJECT(object)->flags = 0u;
 	state_3 = OBJECT(object)->state;
 	if ((int8_t)state_3 < 0)
@@ -2223,7 +2223,7 @@ uint16_t solid_scenery_update(uint16_t object, uint8_t state)
 		break;
 	}
 	scenery_x = OBJECT(object)->x;
-	if (scenery_x >= 0x1F0u)
+	if (!X_BETWEEN(scenery_x, PAST_LEFT(0x40), PAST_RIGHT(0x70)))
 		OBJECT(object)->flags = 0u;
 	return states;
 }
@@ -2316,8 +2316,8 @@ uint16_t carried_obstacle_update(uint16_t object, uint8_t state)
 	if (OBJECT(object)->flags != 0u)
 	{
 		obstacle_x = OBJECT(object)->x;
-		screen_offset = obstacle_x - 0x10u;
-		if (screen_offset >= 0x1A0u)
+		screen_offset = obstacle_x - PAST_LEFT(0x30);
+		if (screen_offset >= SCREEN_SPAN(0x30, 0x30))
 			OBJECT(object)->flags = 0u;
 	}
 	return states;
@@ -2837,7 +2837,7 @@ uint16_t woman_in_apron_update(uint16_t object, uint8_t state)
 		break;
 	}
 	screen_x = OBJECT(object)->x;
-	if (screen_x >= 0x1C0u)
+	if (!X_BETWEEN(screen_x, PAST_LEFT(0x40), PAST_RIGHT(0x40)))
 	{
 		OBJECT(object)->flags = 0u;
 		return states;
@@ -3544,8 +3544,8 @@ uint16_t dreamland_obstacle_update(uint16_t object, uint8_t state)
 	if (OBJECT(object)->flags != 0u)
 	{
 		obstacle_x = OBJECT(object)->x;
-		screen_offset = obstacle_x - 0x40u;
-		if (screen_offset >= 0x1C0u)
+		screen_offset = obstacle_x - PAST_LEFT(0);
+		if (screen_offset >= SCREEN_SPAN(0, 0x80))
 			OBJECT(object)->flags = 0u;
 	}
 	return states;
@@ -4345,7 +4345,7 @@ uint16_t teacup_goon_ride_update(uint16_t object, uint8_t state)
 		OBJECT(object)->teacup_goon_ride.too_many_out = too_many_out + 1u;
 	}
 	hub_x_now = OBJECT(object)->x;
-	if (hub_x_now >= 0x1E0u)
+	if (!X_BETWEEN(hub_x_now, PAST_LEFT(0x40), PAST_RIGHT(0x60)))
 		OBJECT(object)->flags = 0u;
 	return states;
 }
@@ -4535,7 +4535,7 @@ uint16_t bluebird_update(uint16_t object, uint8_t state)
 	if (state_3 == 7u && OBJECT(object)->flags != 0u)
 	{
 		creature_x = OBJECT(object)->x;
-		if (creature_x >= 0x1C0u)
+		if (!X_BETWEEN(creature_x, PAST_LEFT(0x40), PAST_RIGHT(0x40)))
 			OBJECT(object)->flags = 0u;
 	}
 	return states;
@@ -4675,7 +4675,7 @@ uint16_t girl_with_food_update(uint16_t object, uint8_t state)
 		break;
 	}
 	walker_x = OBJECT(object)->x;
-	if (walker_x < 0x40 || walker_x > 0x1CF)
+	if (!X_BETWEEN(walker_x, PAST_LEFT(0), PAST_RIGHT(0x50)))
 		OBJECT(object)->flags = 0u;
 	return states;
 }
@@ -4810,8 +4810,8 @@ uint16_t sideshow_bob_update(uint16_t object, uint8_t state)
 	if (OBJECT(object)->flags != 0u)
 	{
 		walker_x = OBJECT(object)->x;
-		screen_offset = walker_x - 0x10u;
-		if (screen_offset >= 0x1B0u)
+		screen_offset = walker_x - PAST_LEFT(0x30);
+		if (screen_offset >= SCREEN_SPAN(0x30, 0x40))
 			OBJECT(object)->flags = 0u;
 	}
 	return states;

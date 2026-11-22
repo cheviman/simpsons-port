@@ -3,7 +3,7 @@
  *    Description: the doors that open when the stage reaches them and let out enemies (kinds 0F, 10, 12), the car whose doors let enemies out, the kind-93 passer-by
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -122,8 +122,8 @@ uint16_t door_kind_12_run(uint16_t object, uint8_t state)
 	if (OBJECT(object)->flags != 0u)
 	{
 		door_x = OBJECT(object)->x;
-		screen_offset = door_x - 0x30u;
-		if (screen_offset >= 0x190u)
+		screen_offset = door_x - PAST_LEFT(0x10);
+		if (screen_offset >= SCREEN_SPAN(0x10, 0x40))
 			OBJECT(object)->flags = 0u;
 	}
 	return states;
@@ -227,7 +227,7 @@ uint16_t car_doors_run(uint16_t object, uint8_t state)
 		break;
 	}
 	door_x = OBJECT(object)->x;
-	if (door_x < 0x30u)
+	if (X_BETWEEN(door_x, PAST_LEFT(0x40), PAST_LEFT(0x10)))
 		OBJECT(object)->flags = 0u;
 	return states;
 }

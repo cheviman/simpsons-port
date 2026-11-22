@@ -3,7 +3,7 @@
  *    Description: Krustyland's doors and booths, props, the cemetery's pieces
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -548,7 +548,7 @@ void poster_pair_leave(uint16_t object)
 	uint16_t screen_x = 0;
 
 	screen_x = OBJECT(object)->x;
-	if (screen_x < 0x20u)
+	if (X_BETWEEN(screen_x, PAST_LEFT(0x40), PAST_LEFT(0x20)))
 		OBJECT(object)->flags = 0u;
 }
 

@@ -3,7 +3,7 @@
  *    Description: stage 6's objects of type F9 (kind B9)
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -19,7 +19,7 @@ void marge_cloud(uint16_t object)
 	uint16_t screen_x = 0;
 
 	screen_x = OBJECT(object)->x;
-	if ((int16_t)screen_x < 0x40)
+	if ((int16_t)screen_x < PAST_LEFT(0))
 	{
 		OBJECT(object)->flags = 0u;
 		return;

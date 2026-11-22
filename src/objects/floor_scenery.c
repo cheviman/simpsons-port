@@ -3,7 +3,7 @@
  *    Description: the scenery that writes its shape into the floor map
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -931,6 +931,6 @@ void looping_scenery_leave(uint16_t object)
 	x_high = (uint8_t)(OBJECT(object)->x >> 8u);
 	OBJECT(object)->x = (OBJECT(object)->x & 0xFFu) | ((x_high & 1u & 0xFFu) << 8u);
 	scenery_x = OBJECT(object)->x;
-	if (scenery_x >= 0x1C0u)
+	if (!X_BETWEEN(scenery_x, PAST_LEFT(0x40), PAST_RIGHT(0x40)))
 		OBJECT(object)->flags = 0u;
 }

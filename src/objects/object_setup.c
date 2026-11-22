@@ -3,7 +3,7 @@
  *    Description: an object's setup and hit box, gravity and landing, the screen's edges
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -158,7 +158,7 @@ void stop_beyond_screen_edge(uint16_t object)
 	if (OBJECT(object)->flags != 0u)
 	{
 		screen_x = OBJECT(object)->x;
-		if (screen_x < 0x10 || screen_x > 0x1AF)
+		if (!X_BETWEEN(screen_x, PAST_LEFT(0x30), PAST_RIGHT(0x30)))
 			OBJECT(object)->x_speed = 0;
 	}
 }
@@ -173,7 +173,7 @@ uint16_t enemy_remove_off_screen(uint16_t object, uint16_t target)
 	if (OBJECT(object)->flags == 0u)
 		return target;
 	screen_x = OBJECT(object)->x;
-	if (screen_x < 0x1C0u)
+	if (X_BETWEEN(screen_x, PAST_LEFT(0x40), PAST_RIGHT(0x40)))
 		return target;
 	OBJECT(object)->flags = 0u;
 	if (object >= OBJECT_ADDRESS(22))
@@ -191,6 +191,6 @@ uint32_t enemy_on_screen(uint16_t object)
 	uint16_t screen_x = 0;
 
 	screen_x = OBJECT(object)->x;
-	on_screen = screen_x >= 0x50 && screen_x <= 0x16F;
+	on_screen = X_BETWEEN(screen_x, PAST_LEFT(-0x10), PAST_RIGHT(-0x10));
 	return on_screen;
 }

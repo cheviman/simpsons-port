@@ -597,6 +597,12 @@ the global, the fields at once, the parts changed in place and the memory routin
 - **Platforms.** A port provides a window, input, audio output and the frame's pace (59.185 frames a second),
   through the game's calls (`runtime/include/game/game.h`: load the assets, reset, run, and a hook at the end of
   every frame) and the board's inputs (`runtime/include/simpsons/machine.h`); `ports/sdl2/` is the first.
+- **A wider screen.** The places where the code takes an object away, stops it or keeps it in at a side of the
+  screen are written by the edge and the margin past it (`symbols.txt`'s screen-edge section: `PAST_LEFT(0x30)`,
+  `SCREEN_SPAN(0x30, 0x30)`, `X_BETWEEN(x, PAST_LEFT(0x40), PAST_RIGHT(0x40))`, in
+  `runtime/include/game/support.h`). On the board they are the original's numbers; a build with `SIMPSONS_CONSOLE`
+  reads the extra width at each side from `screen_more_left` and `screen_more_right`, which the port defines and
+  sets every frame, and the edges move with it.
 
 ## Legal
 

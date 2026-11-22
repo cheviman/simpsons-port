@@ -3,7 +3,7 @@
  *    Description: the moves an enemy's behaviour picks while it thinks
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -2072,7 +2072,7 @@ void enemy_wait_while_target_down(uint16_t object, uint8_t step, uint16_t *p_ste
 		break;
 	}
 	enemy_x = OBJECT(object)->x;
-	if (enemy_x < 0x40 || enemy_x > 0x17F)
+	if (!X_BETWEEN(enemy_x, PAST_LEFT(0), PAST_RIGHT(0)))
 	{
 		OBJECT(object)->x_speed = 0;
 		OBJECT(object)->y_speed = 0;
@@ -2266,7 +2266,7 @@ void enemy_back_off(uint16_t object, uint8_t step, uint16_t *p_step_handlers, ui
 		break;
 	}
 	enemy_x = OBJECT(object)->x;
-	if (enemy_x < 0x40 || enemy_x > 0x17F)
+	if (!X_BETWEEN(enemy_x, PAST_LEFT(0), PAST_RIGHT(0)))
 	{
 		OBJECT(object)->x_speed = 0;
 		OBJECT(object)->y_speed = 0;

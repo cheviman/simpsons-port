@@ -3,7 +3,7 @@
  *    Description: the obstacles: raising the floor, picked up, thrown and broken
  *    Version:     0.1.0
  *    Created:     06-11-2026
- *    Modified:    11-11-2026
+ *    Modified:    22-11-2026
  *    Author:      Sebastian Toyos
  *
  *    The Simpsons (arcade, Konami 1991): the game's 053248 program decompiled into C by
@@ -145,7 +145,7 @@ void cemetery_obstacle_raise_floor(uint16_t object, uint16_t *p_floor_place, uin
 
 	current_x = OBJECT(object)->x;
 	screen_x = current_x;
-	if (screen_x < 0x160u)
+	if (X_BETWEEN(screen_x, PAST_LEFT(0x40), PAST_RIGHT(-0x20)))
 	{
 		raise_steps = (screen_x & 0xFFu) | 0x200u;
 		obstacle_raise_floor(object, raise_steps, &floor_place, p_left_caller);
@@ -1073,7 +1073,7 @@ void obstacle_start(uint16_t object, uint16_t *p_u, uint32_t *p_left_caller)
 	if (action != 0u)
 	{
 		screen_x = OBJECT(object)->x;
-		if (screen_x < 0x180u)
+		if (X_BETWEEN(screen_x, PAST_LEFT(0x40), PAST_RIGHT(0)))
 		{
 			old_y = OBJECT(object)->y;
 			moved_y = old_y - 2u;
