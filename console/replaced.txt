@@ -18,6 +18,7 @@ enemy_back_off                   # report, Sebas: "hay un enemigo ahí fijo"), n
 ninja_rush_leap          # WIDE: the leaping ninja bounces off the wider screen's sides, the clown on his ball hops on
 clown_on_ball_hop        # in them and Krusty's balloon, knocked up, bounces off them (not off the board's edges, in
 krusty_balloon_fly_up    # the picture's sides' sight)
+carried_obstacle_update  # WIDE: a fat goon's obstacle removed past the wider screen's sides, not while he holds it
 obstacle_start           # WIDE: an obstacle (stage 2's mailbox) put up and shown once in the wider screen's sight
                          # (the players' issue 29: unseen as stage 2 begins, past the board's right side)
 story_actor_finish_frame # WIDE: a scene's actor taken off past the wider screen's sides, not in them (stage 1's opening:

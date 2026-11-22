@@ -98,6 +98,7 @@ static const int k_views[WIDE_AUTO] = { SIMPSONS_VIDEO_WIDTH, 398, 496, 358 };  
 #define BANK_BYTES          0x2000u
 #define STAGE_RECORDS_BANK  0x13u        /* the stages' records (stage_slots[n].record, stage_record_entry) */
 #define WIDE_PAN            4            /* the sides' move a frame toward where they come to be */
+#define OBJECTS             33           /* the object slots (OBJECT_ADDRESS 0-32) */
 #define EDGE                16           /* the cabinet's black edges, the fixed layer's: the board's first and last 16 */
 #define MASK_TILE           0x3Fu
 #define OBJECT_LEFT         0x40         /* an object's x at the board's left edge */
@@ -747,6 +748,60 @@ static bool debug_on(void)
 	return on != 0;
 }
 
+/* SIMPSONS_WIDE_AUDIT (a check, set when the port runs: the headless with a stage's script): each frame of a play
+   with sides, what the game does past the board's sides that WIDE shows. An object gone (its flags cleared, or its
+   slot another type's) while it was in a side, and an object in a side for a second without being drawn (animation
+   flag 80 off): the game's own checks at the cabinet's sides that WIDE has not moved yet (the players' issue 29:
+   the fat goon's obstacle, stage 2's mailbox). Many are the game's own (an enemy beaten there, a spawn waiting):
+   each one is read before it is fixed */
+#define AUDIT_HIDDEN        60
+
+static void audit_frame(int left, int right)
+{
+	static int on = -1;
+	static uint8_t last_flags[OBJECTS], last_type[OBJECTS], last_kind[OBJECTS], last_state[OBJECTS];
+	static int16_t last_x[OBJECTS];
+	static int hidden[OBJECTS];
+
+	if (on < 0)
+		on = getenv("SIMPSONS_WIDE_AUDIT") != NULL;
+	if (!on)
+		return;
+	for (int number = 0; number < OBJECTS; number++)
+	{
+		const uint16_t object = (uint16_t)OBJECT_ADDRESS(number);
+		const uint8_t flags = OBJECT(object)->flags, type = OBJECT(object)->type;
+		const int16_t x = (int16_t)OBJECT(object)->x;
+		const bool was_side = (left || right) && last_flags[number]
+			&& ((last_x[number] >= OBJECT_LEFT - left && last_x[number] < OBJECT_LEFT)
+				|| (last_x[number] >= OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH && last_x[number] < OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH + right));
+		const bool side = (left || right) && flags
+			&& ((x >= OBJECT_LEFT - left && x < OBJECT_LEFT) || (x >= OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH && x < OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH + right));
+
+		const bool was_board = (left || right) && last_flags[number] && last_x[number] >= OBJECT_LEFT
+			&& last_x[number] < OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH;
+		const bool board = (left || right) && flags && x >= OBJECT_LEFT && x < OBJECT_LEFT + SIMPSONS_VIDEO_WIDTH;
+		const bool drawn = (OBJECT(object)->animation_flags & 0x80u) != 0u;
+
+		if ((was_side || was_board) && (!flags || type != last_type[number]))
+			fprintf(stderr, "AUDIT frame %llu step %u: gone in %s: object %d type %02X kind %02X state %02X x %04X%s\n",
+				(unsigned long long)simpsons_board.frame, (unsigned)game_step, was_side ? "a side" : "the board", number,
+				(unsigned)last_type[number], (unsigned)last_kind[number], (unsigned)last_state[number],
+				(unsigned)(uint16_t)last_x[number], flags ? " (its slot another's)" : "");
+		if (board && drawn && hidden[number] >= 8)
+			fprintf(stderr, "AUDIT frame %llu step %u: drawn as it came in to the board, hidden %d frames in a side: object %d "
+				"type %02X kind %02X state %02X x %04X\n", (unsigned long long)simpsons_board.frame, (unsigned)game_step,
+				hidden[number], number, (unsigned)type, (unsigned)OBJECT(object)->kind, (unsigned)OBJECT(object)->state,
+				(unsigned)(uint16_t)x);
+		hidden[number] = side && !drawn ? hidden[number] + 1 : (side ? 0 : (board ? 0 : hidden[number]));
+		last_flags[number] = flags;
+		last_type[number] = type;
+		last_kind[number] = OBJECT(object)->kind;
+		last_state[number] = OBJECT(object)->state;
+		last_x[number] = x;
+	}
+}
+
 /* ---- stage 3's elevator: its sides of the shaft's own cells (off) ----
 
    Off (CLIMB_SIDES 0): the elevator shows WIDE's sides black, the picture centred (Sebas, 15-11-2026: "no me gusta",
@@ -1026,6 +1081,78 @@ static void climb_fill(int left, int right)
 }
 #endif
 
+/* ---- stage 2's boss: its sides of the deck's own cells ----
+
+   Krusty's balloon is fought on the deck at the map's right end, the camera stopped at the boss's place (its check's
+   stop): WIDE's sides are all at the left, the map's columns the camera passed, which the cabinet never shows in the
+   fight: the fun house's white wall and its porthole beside the deck, the trees and the Ferris wheel, and after the
+   boss (stage_2_after_boss: the void's area drawn at the boss's place) the broken deck's columns past its own. Sebas
+   saw them in 16:9 ("tendríamos que hacer como hicimos con el segasonic de reconstruir el margen"): from the camera's
+   stop there (the stage entry's check, as camera_room reads it), each row of both layers' ring goes on leftwards as
+   the repeat of its cells the board shows (the period, of 1 to 16 cells, that most of the board's first 16 hold for;
+   the smaller when alike; the ring's 64 columns room for 32 made, 20:9's 24 or 25), so the deck's planks, its rail and posts, the trees and the sky go on to the picture's left end. The cells
+   are the board's tile RAM, as the play's side columns are, made again each frame from the board's columns (which the
+   game draws), so a LAN game's devices draw them alike; the floor map stays the map's */
+#define BOSS_PERIOD_MOST    16
+#define BOSS_SCORED         16
+#define RING_COLUMNS        64
+
+static int boss_fill_end[2] = { -1, -1 };    /* (each layer's first map pixel past the cells made: console_wide_check) */
+
+static bool boss_sides(void)
+{
+	const int data = rom16(STAGE_RECORDS_BANK, (uint16_t)(stage_record_entry + 2u));
+	const int place = data < 0 ? -1 : rom16(STAGE_RECORDS_BANK, (uint16_t)(data + 1));
+
+	return game_step == STAGE_2_STEP && wide_left_now > 0 && data >= 0
+		&& rom8(STAGE_RECORDS_BANK, (uint16_t)data) == (int)CHECK_STOP && place >= 0 && place <= (int)(uint16_t)camera_x;
+}
+
+static void boss_side_fill(void)
+{
+	for (int layer = 0; layer < 2; layer++)
+	{
+		const uint16_t tiles = record_of(layer).tiles;
+		const int x = layer_scroll_x(layer);
+		const int board = x >> 3, first = (x - wide_left_now) >> 3;
+
+		boss_fill_end[layer] = -1;
+		if (!rings[layer].known || first >= board || board - first > RING_COLUMNS - BOSS_SCORED - BOSS_PERIOD_MOST)
+			continue;
+		boss_fill_end[layer] = board * TILE;
+		for (int row = 0; row < 32; row++)
+		{
+			uint8_t *colour = &simpsons_board.tile_ram[tiles + 0x40u * (unsigned)row - 0x2000u];
+			uint8_t *code = &simpsons_board.tile_ram[tiles + 0x40u * (unsigned)row];
+			int best = 1, best_score = -1;
+
+			for (int period = 1; period <= BOSS_PERIOD_MOST; period++)
+			{
+				int score = 0;
+
+				for (int cell = board; cell < board + BOSS_SCORED; cell++)
+				{
+					const int here = cell & (RING_COLUMNS - 1), there = (cell + period) & (RING_COLUMNS - 1);
+
+					score += colour[here] == colour[there] && code[here] == code[there];
+				}
+				if (score > best_score)
+				{
+					best = period;
+					best_score = score;
+				}
+			}
+			for (int column = board - 1; column >= first; column--)
+			{
+				const int here = column & (RING_COLUMNS - 1), there = (column + best) & (RING_COLUMNS - 1);
+
+				colour[here] = colour[there];
+				code[here] = code[there];
+			}
+		}
+	}
+}
+
 static void settle_moved_spawns(void);
 
 void console_wide_frame(void)
@@ -1090,6 +1217,10 @@ void console_wide_frame(void)
 			draw_side_columns(layer, &map, wide_left_now, wide_right_now);
 			simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
 		}
+		if (boss_sides())
+			boss_side_fill();    /* (stage 2's boss: its sides of the deck's own cells) */
+		else
+			boss_fill_end[0] = boss_fill_end[1] = -1;
 		simpsons_video_set_fixed((wide_right_now - wide_left_now) / 2, fixed_first, fixed_last);
 	}
 	else
@@ -1131,6 +1262,7 @@ void console_wide_frame(void)
 		simpsons_video_set_fixed(kept ? (wide_right_now - wide_left_now) / 2 : 0, fixed_first, fixed_last);
 	}
 	simpsons_video_set_wide(wide_left_now, wide_right_now);
+	audit_frame(shown_now == SHOW_PLAY ? wide_left_now : 0, shown_now == SHOW_PLAY ? wide_right_now : 0);
 	if (debug_on())
 	{
 		const int data = rom16(STAGE_RECORDS_BANK, (uint16_t)(stage_record_entry + 2u));
@@ -1394,7 +1526,6 @@ static uint16_t past_left_side(uint16_t placed, int side_left, int side_right, i
 	return (uint16_t)(board_x - more);
 }
 
-#define OBJECTS             33
 #define FIRST_ENEMY         14           /* (the objects the enemies' lists run: object_lists.c) */
 #define MOVED_MOST          16
 #define MOVED_FRAMES        2            /* (the frames a moved spawn has to show it is an enemy) */
@@ -1842,6 +1973,78 @@ uint32_t remove_off_screen(uint16_t object, uint32_t carry)
 			OBJECT(object)->flags = 0u;
 	}
 	return carry;
+}
+
+/* The game's carried_obstacle_update (objects/bank_entries.c): the obstacle a fat goon carries on his head (list 1
+   type 28) is removed past the board's sides by a check of its own (x short of 0010 or from 01B0 on), not by
+   remove_off_screen. A goon coming in past WIDE's left side puts it in at x 0000 or so: it was removed in its first
+   frame, and the goon walked in holding nothing; its slot free, the next object put in took it (stage 2's mailbox),
+   and the goon, holding that slot still, carried the mailbox to his head and threw it across the screen (the players'
+   issue 29). In WIDE: past the wider screen's sides, and not while its goon holds it (held_in_sight) */
+#define CARRIED_LEFT        0x10
+#define CARRIED_RIGHT       0x1B0
+
+uint16_t carried_obstacle_update(uint16_t object, uint8_t state)
+{
+	uint16_t states = carried_obstacle_states_ADDRESS;
+	int side_left, side_right;
+
+	play_now(&side_left, &side_right);
+	if (!side_left && !side_right)
+		return original_carried_obstacle_update(object, state);
+	switch ((int8_t)(uint8_t)((uint32_t)state << 1))    /* (the game's, as it is) */
+	{
+	case 0:
+	case 18:
+		states = carried_obstacle_start(object);
+		break;
+	case 2:
+		states = carried_obstacle_held(object);
+		break;
+	case 4:
+		carried_obstacle_thrown(object);
+		break;
+	case 6:
+	case 24:
+		carried_obstacle_fly(object);
+		break;
+	case 8:
+	case 26:
+		carried_obstacle_bounce(object);
+		break;
+	case 10:
+	case 28:
+		carried_obstacle_land(object);
+		break;
+	case 12:
+	case 30:
+		carried_obstacle_slide(object);
+		break;
+	case -4:
+	case 14:
+		states = carried_obstacle_break_steps(object);
+		break;
+	case -2:
+	case 16:
+		states = carried_obstacle_drop_steps(object);
+		break;
+	case 20:
+		states = tossed_obstacle_held(object);
+		break;
+	case 22:
+		tossed_obstacle_toss(object);
+		break;
+	}
+	states = object_take_special_hit(object, states);
+	carried_obstacle_check_floor(object);
+	if (OBJECT(object)->flags != 0u)
+	{
+		const int x = (int16_t)OBJECT(object)->x;
+
+		if ((x < CARRIED_LEFT - side_left || x >= CARRIED_RIGHT + side_right) && !held_in_sight(object))
+			OBJECT(object)->flags = 0u;
+	}
+	return states;
 }
 
 /* The game's stop_beyond_screen_edge (objects/object_setup.c): stopped 48 pixels past the wider screen's sides */
@@ -3030,8 +3233,8 @@ int console_wide_check(char *text, size_t size)
 		{
 			if (column >= (x & ~(TILE - 1)) && column + TILE - 1 <= x + SIMPSONS_VIDEO_WIDTH - 1)
 				continue;    /* (the board's) */
-			if (column < 0 || column + TILE > map.width)
-				continue;
+			if (column < 0 || column + TILE > map.width || column < boss_fill_end[layer])
+				continue;    /* (and stage 2's boss's sides, of the deck's own cells: boss_side_fill) */
 			checking = 0;
 			checked = 0;
 			draw_column(layer, &map, column, false, rings[layer].y);

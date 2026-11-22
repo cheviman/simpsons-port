@@ -795,3 +795,41 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
   - Checked (the console's headless, --arcade-start): stage 2's script (2600-4400) and four_players (1500-15000) in
     16:10, 16:9 and 20:9 against the build before: 19 pixels changed in the frames of play, the closing column alone
     (rows 8 to 26), nothing in the others; with WIDE off nothing. The 25 scenarios identical. Not checked on a device.
+- **22-11-2026, WIDE: stage 2's fight with Krusty's balloon** (the players' issue 29, seen by Sebas in the Windows
+  executable in 16:9; Sebas: "tendríamos que hacer como hicimos con el segasonic de reconstruir el margen con sprites
+  para el piso"): the camera stops for the boss at the map's right end (its stage entry's check, 074F), so WIDE's
+  sides are all at the left (16:9's 112 pixels, 20:9's 192), over map the cabinet never shows in the fight: the fun
+  house's white wall and its porthole beside the deck (layer B), the Ferris wheel and a lighter sky (layer A), and,
+  once the deck gives way (stage_2_after_boss, the void's area drawn at the boss's place), the broken floor's own
+  columns past it. The deck and the scene are the layers', not sprites (each layer hidden in turn: B the deck, the rail
+  and the wall, A the sky and the trees). boss_side_fill, from the camera's stop on in step 4: each ring row of both
+  layers goes on leftwards as the repeat of its cells the board shows (the period of 1 to 16 cells most of the board's
+  first 16 hold for, the smaller when alike), made again each frame from the board's columns, which the game draws (a
+  LAN game's devices alike); the floor map stays the map's. console_wide_check leaves those columns out.
+  - Checked (the console's headless, --arcade-start, stage 2's script, 13000-16400): in 16:9, 16:10 and 20:9 the left
+    side is the deck, the rail, the trees and the sky, with no wall (nor, in 20:9, the fun house's face), and the
+    broken deck goes on alike; the seam at the board's left edge unseen at 2x. WIDE off: frames 13000-16300 identical
+    to the build before, byte for byte. The day frames between the camera's stop and the night (some 15) show the deck
+    going on too. Not checked on a device.
+- **22-11-2026, WIDE: stage 2's fat goons' obstacles, again** (the players' issue 29; Sebas, in the Windows executable:
+  "sigue sin aparecer el item del gordo", and "voló diagonalmente un buzón que no sé de dónde salió"): held_in_sight
+  (remove_off_screen) did not cover it: the obstacle a fat goon carries (list 1 type 28, carried_obstacle_update) is
+  removed by a check of its own, x short of 0010 or from 01B0 on, the cabinet's sides. The goon coming in past WIDE's
+  left side (x 0000 at frame 6461 of stage 2's script in 16:9) put it in at FFF6: removed in its next frame. Its slot
+  free, stage 2's mailbox by the cages took it (6484), and the goon, holding that slot still, carried the mailbox to
+  his head and threw it (6673): the mailbox Sebas saw fly. carried_obstacle_update is now the console's (replaced.txt;
+  CONSOLE_ORIGINAL in src/objects/bank_entries.c and src/game.h, as obstacle_start): the game's own steps, its check
+  by WIDE's sides (0010 less the left side, 01B0 and the right side) and never while its goon holds it.
+  - Checked (the console's headless, --arcade-start, stage 2's script): in 16:9 the goon from 6461 carries his obstacle
+    (slot 26, kind 05) and throws it as on the board; the mailbox stays at its place. In 20:9 a thrower in 760 frames,
+    with his obstacle in 405 (till it is thrown). In 16:10 the script's play has no thrower before 7000: not seen
+    there. WIDE off: frames 13000-16300 identical to the build before. Not checked on a device.
+- **22-11-2026, WIDE: the review of the cabinet's limits in every stage** (Sebas: "tenemos un error recurrente, que son
+  los límites del wide, te diría que hagas una revisión con todos los niveles"; "la decomp, hagamos que sea una
+  constante, es claridad de código. Al port va lo del punto de entrada"): SIMPSONS_WIDE_AUDIT (console/wide.c,
+  audit_frame) prints, in a play with sides, the objects gone in a side or in the board and those drawn only as they
+  come in to the board. The 8 stage scripts in 16:9: none drawn only as it came in; the side-only vanishes the game's
+  own (beaten fat goons, broken obstacles), but stage 4's figure behind the bar (x < 0x30, frame 9722). The 257
+  limit-like lines of src/ classified by the local worker (52 object limits), read: 13 edge checks WIDE did not move.
+  The decomp turns them into named constants (PAST_LEFT, PAST_RIGHT, SCREEN_SPAN, X_BETWEEN in support.h) with a hook,
+  screen_more_left/right, 0 on the board; the port sets it from WIDE's sides (next: the merge).

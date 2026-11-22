@@ -2260,7 +2260,7 @@ uint16_t police_car_door_update(uint16_t object, uint8_t state)
 }
 
 /* Runs the obstacle a fat goon carries and throws: carried, thrown, bouncing and breaking. */
-uint16_t carried_obstacle_update(uint16_t object, uint8_t state)
+uint16_t CONSOLE_ORIGINAL(carried_obstacle_update)(uint16_t object, uint8_t state)
 {
 	uint8_t state_2 = 0;
 	uint16_t states = 0;

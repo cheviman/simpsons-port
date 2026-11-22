@@ -1816,7 +1816,7 @@ uint16_t fat_goon_back_off_update(uint16_t object, uint8_t step);
 uint16_t moe_spawner_update(uint16_t object, uint8_t state);
 uint16_t solid_scenery_update(uint16_t object, uint8_t state);
 uint16_t police_car_door_update(uint16_t object, uint8_t state);
-uint16_t carried_obstacle_update(uint16_t object, uint8_t state);
+uint16_t CONSOLE_ORIGINAL(carried_obstacle_update)(uint16_t object, uint8_t state);
 uint16_t charging_scenery_update(uint16_t object, uint8_t state);
 uint16_t scenery_debris_update(uint16_t object, uint8_t state);
 void obstacle_update(uint16_t object, uint32_t carry, uint16_t *p_states, uint32_t *p_left_caller);
