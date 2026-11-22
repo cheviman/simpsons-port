@@ -175,7 +175,7 @@ def main():
     parser.add_argument("--switch", required=True,
                         help="the Switch's games: simpsons/ and simpsons-arcade/, the .nsp's pieces")
     parser.add_argument("--switch-nro", required=True,
-                        help="the Switch's .nro without assets: The Simpsons Mr. Plow Edition.nro, The Simpsons Arcade Game.nro")
+                        help="the Switch's .nro without assets: simpsons.nro (The Simpsons Mr. Plow Edition), simpsons-arcade.nro (The Simpsons Arcade Game)")
     parser.add_argument("--android", required=True,
                         help="Android's games: simpsons-base.apk, simpsons-arcade-base.apk")
     parser.add_argument("--android-ready", help="Android's APKs signed with the project's key (none: not in it)")

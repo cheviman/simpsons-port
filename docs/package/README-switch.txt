@@ -15,8 +15,8 @@ What you need
 
 From the Homebrew Menu (the .nro)
 ---------------------------------
-Copy what is in sd/ to the root of your SD card: switch/simpsons-arcade/The Simpsons Mr. Plow Edition.nro and
-switch/simpsons-arcade/The Simpsons Arcade Game.nro. Put simpsons.zip in switch/simpsons-arcade/ beside them,
+Copy what is in sd/ to the root of your SD card: switch/simpsons-arcade/simpsons.nro (The Simpsons
+Mr. Plow Edition) and switch/simpsons-arcade/simpsons-arcade.nro (The Simpsons Arcade Game). Put simpsons.zip in switch/simpsons-arcade/ beside them,
 and start either game from the Homebrew Menu. The first start takes the assets out of simpsons.zip into one
 file, switch/simpsons-arcade/simpsons.assets (some seconds, the screen black); both games start from it from
 then on. Without simpsons.zip the game says where to put it (press + to leave).

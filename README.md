@@ -62,8 +62,8 @@ download walks you through it.
   `The Simpsons Mr. Plow Edition.apk` and `The Simpsons Arcade Game.apk`, signed with a key of your own. Copy them
   to the device and open them there. Make the next updates on the same computer: each one then installs over the
   last and keeps your settings and scores ([more](ports/android/apk/README.md)).
-- **Nintendo Switch** (`simpsons-switch.zip`, a console with homebrew): `The Simpsons Mr. Plow Edition.nro` and
-  `The Simpsons Arcade Game.nro` for the Homebrew Menu, with `simpsons.zip` in `/switch/simpsons-arcade/` on the SD
+- **Nintendo Switch** (`simpsons-switch.zip`, a console with homebrew): `simpsons.nro` (Mr. Plow Edition) and
+  `simpsons-arcade.nro` (Arcade Game) for the Homebrew Menu or a forwarder, with `simpsons.zip` in `/switch/simpsons-arcade/` on the SD
   card; or **Simpsons NSP** makes `The Simpsons Mr. Plow Edition.nsp` and `The Simpsons Arcade Game.nsp` for the
   HOME menu.
 - **iPhone and iPad** (`simpsons-ios.zip`): unsigned `.ipa` files to install with AltStore, SideStore or

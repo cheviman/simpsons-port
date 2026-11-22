@@ -90,13 +90,13 @@ function(simpsons_switch_game target name folder title_id program)
 	if(NOT EXISTS ${SIMPSONS_SWITCH_PACK})
 		# the .nro without a pack (the release's: the game takes the assets out of simpsons.zip on the SD card), in
 		# SIMPSONS_BIN_DIR/switch-nro, apart from the .nsp's pieces the computers' packages carry
-		set(nro ${SIMPSONS_BIN_DIR}/switch-nro/${name}.nro)
+		set(nro ${SIMPSONS_BIN_DIR}/switch-nro/${folder}.nro)
 		add_custom_command(OUTPUT ${nro}
 			COMMAND ${CMAKE_COMMAND} -E make_directory ${SIMPSONS_BIN_DIR}/switch-nro
 			COMMAND ${SIMPSONS_ELF2NRO} $<TARGET_FILE:${target}> ${nro} --icon=${SIMPSONS_SWITCH_ICON}
 				--nacp=${out}/control.nacp
 			DEPENDS ${target} ${out}/control.nacp ${SIMPSONS_SWITCH_ICON}
-			COMMENT "${name}.nro without an assets pack"
+			COMMENT "${folder}.nro (${name}) without an assets pack: no space in its name, which a forwarder passes in argv"
 			VERBATIM)
 		list(APPEND outputs ${nro})
 	else()

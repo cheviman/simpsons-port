@@ -119,6 +119,7 @@ static bool stage_step(unsigned step)
    stood in WIDE's sight (Sebas: "los secuaces esperan en altura de 4:3") */
 #define TITLE_PHASE         1u
 #define CEMETERY_STEP       7u
+#define STAGE_8_STEP        15u
 
 static bool title_card(void)
 {
@@ -256,10 +257,35 @@ static void put_tile(uint16_t place, uint8_t colour, uint8_t code)
 	}
 }
 
+/* The floor map's cells WIDE put in: what it put and what the board's had there before (while the cell still holds
+   WIDE's, the game has not written it since) */
+static uint8_t floor_wide[FLOOR_MAP_END - FLOOR_MAP], floor_board[FLOOR_MAP_END - FLOOR_MAP];
+static bool floor_put[FLOOR_MAP_END - FLOOR_MAP];
+
 static void put_floor(uint16_t place, uint8_t value)
 {
 	if (checking < 0 && place >= FLOOR_MAP && place < FLOOR_MAP_END)
+	{
+		const unsigned cell = place - FLOOR_MAP;
+
+		if (!floor_put[cell] || RAM8(place) != floor_wide[cell])
+			floor_board[cell] = RAM8(place);
+		floor_put[cell] = true;
+		floor_wide[cell] = value;
 		RAM8(place) = value;
+	}
+}
+
+/* The board's cells back where WIDE's are still there */
+static void floor_back_to_board(void)
+{
+	for (unsigned cell = 0; cell < FLOOR_MAP_END - FLOOR_MAP; cell++)
+		if (floor_put[cell])
+		{
+			if (RAM8(FLOOR_MAP + cell) == floor_wide[cell])
+				RAM8(FLOOR_MAP + cell) = floor_board[cell];
+			floor_put[cell] = false;
+		}
 }
 
 /* The map's column at map pixel 'x' (a multiple of 8) of a layer, as draw_map_column draws it at the layer's
@@ -517,6 +543,15 @@ static void draw_side_columns(int layer, const layer_map_area *map, int left, in
 			ring->last = column + TILE - 1;
 			if (ring->last - ring->first >= RING)
 				ring->first = ring->last - (RING - 1);
+		}
+		if (game_step == STAGE_8_STEP && stage_scrolls_on == 0u)
+		{
+			/* (stage 8's fight with Smithers, its scroll stopped: the floor map's cells as the board's holds them. Its
+			   left wall is at the wider screen's left side, a column the cabinet never draws: the board's cells there
+			   are another place's floor, and Smithers runs past it some 166 pixels and back. With the wall's cells
+			   WIDE drew there he could be put inside it, turn in it at each frame and stay off the screen: the
+			   players' issue 31) */
+			floor_back_to_board();
 		}
 	}
 }

@@ -10,6 +10,14 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **WIDE, Lisa's box at the top closed at its right** (the players' issue 29): the players' boxes each have their white
   side at the left, and the fourth's right one fell under the cabinet's black edge, so the game never drew it; in WIDE's
   play it is drawn now, as the others are.
+- **WIDE, stage 8: Smithers stuck off the screen** (the players' issue 31): his fight's left wall is at the wider
+  screen's left side, a column the cabinet never draws, so on the cabinet he runs well past it and back. WIDE had put
+  the wall's floor cells there, and a hit or a jump could leave him inside them, turning at each frame off the screen.
+  In his fight the floor map is now the cabinet's, cell for cell.
+- **Switch, the .nro from a forwarder** (the players' issue 30): the two .nro are now `simpsons.nro` (Mr. Plow
+  Edition) and `simpsons-arcade.nro` (Arcade Game), with no space in their names. A forwarder (Sphaira's) hands the
+  .nro's path to the Homebrew loader, which cut it at the first space and stopped with error 2002-6005. Replace the old
+  `The Simpsons ... .nro` files on the SD card with these, and make the forwarder again.
 
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.
