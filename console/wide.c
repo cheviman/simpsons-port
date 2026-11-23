@@ -649,11 +649,16 @@ static bool edges_masked(void)
 #define STAGE_7_STEP        0x0Du
 #define STAGE_7_CLOSING     7u
 #define STAGE_7_END_PHASE   8u
+/* And stage 8's ending in Mr. Burns' office, from its closing scene on (stage_8_closing_scene, stage_8_objects_wait,
+   stage_8_end_phase): a cutscene, 4:3 with black sides as the others (the players' issue 32: "the ending's scene has
+   no black borders") */
+#define STAGE_8_CLOSING     12u
 
 static bool closing_story(void)
 {
 	return (game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE)
-		|| (game_step == STAGE_7_STEP && step_phase == STAGE_7_END_PHASE);
+		|| (game_step == STAGE_7_STEP && step_phase == STAGE_7_END_PHASE)
+		|| (game_step == STAGE_8_STEP && step_phase >= STAGE_8_CLOSING);
 }
 
 /* A stage's play: its maps drawn, the game's steps going on */
