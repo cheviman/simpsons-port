@@ -1455,22 +1455,28 @@ static bool hud_white(const console_picture *frame, int x, int y)
 	return (colour >> 16 & 0xFFu) >= 0xF0u && (colour >> 8 & 0xFFu) >= 0xF0u && (colour & 0xFFu) >= 0xF0u;
 }
 
-/* Over the frame the video drew, in WIDE's play: the fourth player's box (Lisa's) closed at its right as the others
-   are, the side the boxes share copied there, when the boxes are drawn (the players' issue 29: "the HUD for Lisa
-   should have a white, single pixel-wide strip added to the right side") */
+/* Over the frame the video drew, in WIDE's play and its pictures (the character choice's, whose boxes are the same;
+   not a cutscene shown as the cabinet's, black_drawn): the fourth player's box (Lisa's) closed at its right as the
+   others are, the side the boxes share copied there, when the boxes are drawn (the players' issue 29: "the HUD for
+   Lisa should have a white, single pixel-wide strip added to the right side"; issue 32, the choice's: "still missing
+   the right-side pixel border") */
 void wide_hud_closed(console_picture *frame)
 {
 	const int dx = (frame->right - frame->left) / 2;    /* (the fixed layer's, centred: console_wide_frame) */
 	const int side = HUD_LAST_SIDE + dx, closing = side + HUD_BOX_WIDTH;
 
-	if (shown_drawn != SHOW_PLAY || fixed_first != EDGE || side < PICTURE_FIRST(frame) || closing >= PICTURE_END(frame))
+	if (shown_drawn == SHOW_BOARD || black_drawn || fixed_first != EDGE || side < PICTURE_FIRST(frame)
+		|| closing >= PICTURE_END(frame))
 		return;
 	for (int y = HUD_TOP; y < HUD_BOTTOM; y++)
 		if (!hud_white(frame, side, y))
 			return;
 	if (!hud_white(frame, closing - 1, HUD_TOP) || !hud_white(frame, closing - 1, HUD_BOTTOM))
 		return;    /* (the box's top and bottom reaching its end) */
-	for (int y = HUD_TOP; y <= HUD_BOTTOM; y++)    /* (row 26 the shared side's shadow, grey: as the others') */
+	/* (from the row under the box's top: the boxes' corners are left out, as the name's tab's are, the side under
+	   each tab's corner beginning a row below it; the players' issue 32, "the top-most pixel removed". Row 26 the
+	   shared side's shadow, grey: as the others') */
+	for (int y = HUD_TOP + 1; y <= HUD_BOTTOM; y++)
 		frame->pixels[y * frame->stride + frame->left + closing] = frame->pixels[y * frame->stride + frame->left + side];
 }
 

@@ -915,3 +915,26 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     ending at 9048 instead of its time's 10198, its sides brown in its 54 frames looked at. Stage 1's opening as before.
     --wide-check: stage 3 as before; stage 7 the lift-off's 127 reports as before (now not drawn). The Simpsons
     Arcade's 25 scenarios identical (state, video, sound). Not checked on a device.
+- **23-11-2026, the players' issue 32's last items** (the reporter, with WIDE: Lisa's box "could still have the
+  top-most pixel removed. Her HUD on the character select screen is also still missing the right-side pixel border";
+  "Goons who throw hats now have an animation error, where they are still wearing the hat for the duration of their
+  throwing and catching animation"):
+  - Lisa's box in play: the players' boxes have their corners left out (each box's side, the board's 16, 88, 160 and
+    232, begins at row 1 under its name tab's corner, left out at row 0; a box's top, row 8, meets the next box's side
+    without a corner of its own). wide_hud_closed copied the side from row 8, a square top corner at the end of her
+    box's top; it now copies from row 9 to 26.
+  - The character choice: its boxes at the top (PRESS START in them) are the play's, the same fixed layer, but the
+    screen is a picture to WIDE (SHOW_PICTURE), and wide_hud_closed ran in the play alone. It now runs in WIDE's
+    pictures too (not in a cutscene shown as the cabinet's, black_drawn); the attract's demo, a picture with black
+    sides, gets her box closed with it. In 4:3 her box ends at the picture's edge, as on the cabinet.
+  - The hat throwers: the cabinet's own. Stage 2's script, goon 50A0 (enemy type 01, hat_goon) winds up at 6182
+    (hat_goon_throw_start, animation AB) and catches at 6255 (AC): on the cabinet (the arcade's headless) he takes his
+    hat off, and the throw's and the catch's pictures have a hat on his head while the thrown one flies. The console
+    with WIDE OFF draws him pixel for pixel the same (frames 6176 to 6275; the only difference in those frames is
+    Bart's red shirt, bart_shirt.c). The goons go through the game's draw_object (same_character.c remaps the players'
+    objects alone), so WIDE draws the same pictures.
+  - Checked (the console's headless, the frames as shown against the build before, 64 frames a run): four_players,
+    stage 2's script, the attract, the character choice and Mr. Plow mode's FREE PLAY run in 16:9, 16:10 and 20:9: the
+    pixels changed are in Lisa's closing column alone (352, 336 and 392), rows 8 to 26: row 8 gone in the play's
+    frames, rows 9 to 26 added on the choice and in the attract's demo; with WIDE off nothing. Nothing outside
+    console/ changed. Not checked on a device.

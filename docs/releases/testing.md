@@ -62,6 +62,9 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
   and part of the picture blocks of other tiles. It is a picture now, as the other scenes, its sides black.
 - **WIDE, the ending in Mr. Burns' office** (the players' issue 32): from the closing scene on it is a picture, 4:3
   with black sides, as the other cutscenes.
+- **WIDE, Lisa's box at the top** (the players' issue 32): the right side WIDE draws for it began a pixel too high.
+  The players' boxes have their corners left out, and hers had a square top corner; it now begins under it, as the
+  others. On the character choice screen her box (PRESS START) is now closed at its right too.
 - **WIDE, stage 3's elevator: the goons jumping in from the right** (the players' issue 35): they landed on floor that
   WIDE had left there from the cemetery, off the platform where nothing is drawn, so they vanished and then fell in
   from above. The elevator's floor is the cabinet's now, its platform alone.
