@@ -877,3 +877,41 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     UP and ACCEPT the page again. The window with --settings twice: the code written as `konami_code=1`, the next
     run's menu with the line and no code entered. The arcade build compiled, its code untouched (the 25 scenarios not
     run: Sebas, "no es necesario los 25 escenarios si es la intro"). Not checked on a device.
+- **23-11-2026, the players' issues 34, 35 and 36** (Sebas: "tenemos nueva tanda de errores, 34,35,36. el 34 es cuando
+  se escapa smithers al final ... aca no llega a pasar, y se ven los 2. despues el 35, cuando estas en el ascensor ...
+  los malos caen, se borran, y aparecen fuera de cuadro ... y dps el 36 es un mix de todo"; on the frames, "y encima
+  ahi hay un error de fondo"):
+  - 34, stage 7's end (step 0D, phase 07): Smithers (object 30, kind 9C, a scene's actor) runs off 1 pixel a frame
+    faster than the camera; the board takes him off at 018F, 32 pixels past its sight, WIDE only past its side, so he
+    stayed in it ~64 frames, the helicopter with him at its window coming in meanwhile. story_actor_out_as_board
+    (wide.c, from story_actor_finish_frame): an actor that is not a player, past the board's sight's edge and going out,
+    has each frame's move taken further by (side + the board's black edge) / 32, so it leaves the picture as its sprite
+    left the board's. In 20:9 the helicopter comes into its 88 pixels while he is still at the board's edge: the
+    closing scene's right side is no more than 48 (HELICOPTER_RIGHT, play_sides; the rest at the left).
+  - 34, the lift-off (stage_7_scene_lift: layer B's y up, a row of its cells blanked as it goes): the kabuki stage's
+    deck and beams, in WIDE's left side of layer B's map, went up the side. helicopter_lift: layer B's window the
+    board's columns alone while its y is not the one its ring was drawn at (a small piece of the deck goes at once).
+  - The scene before stage 8 (phase 08, stage_7_end_phase: the helicopter flying to the plant, on stage 7's scene, area
+    1) was a play to WIDE, its sides drawn from that map (the lift-off's 112 at the left): blocks of other tiles round
+    the plant and down the sides. closing_story takes it as stage 2's end: a picture, its sides black.
+  - 35, stage 3's elevator (the reporter's "ride down to Moe's Tavern"): the floor map held WIDE's cells of the
+    cemetery's map, walkable beside the platform (columns 40-52), and a goon jumping in from the right (type EE, from
+    x 017E) landed there at x 0152, up at z 0078, unseen, and fell in from above. The elevator's floor map is the
+    board's (floor_back_to_board each frame of its picture), and the game's whole layer with its floor map
+    (draw_layer_columns_with_floor_map) leaves none of WIDE's cells in the columns it filled (a cell the game filled
+    with the value WIDE had there was taken for WIDE's, and the platform's left part went back to the cemetery's).
+  - 36, the name entry (mode_phase 4): a column for each slot whose score made the table, each read from its own
+    slot's controls; a player who continued as another character had his controls on the last slot alone.
+    name_entry_slot (console.c): his controls go to the first of the slots he played this game (slots_played, from the
+    character choice on) whose entry (3842 + 4 x slot) is not done, left to right, then the next. Its sides in WIDE
+    flashed between its brown and black as the Maggies walking along the bottom crossed the edges (a tenth of their
+    rows): a picture's sides keep their colour while both edges are still mostly it (two thirds of their rows).
+  - Checked (the console's headless, a probe of the objects and the floor map, since taken out): stage 7's script,
+    Smithers out of the picture by frame 30806 in 16:9 and the helicopter in from 30818; 20:9 him gone by 28050, the
+    helicopter's tail from 28080; 16:10 as 16:9; the lift-off with no layer B in the left side; the plant's scene
+    clean in 16:9, 16:10 and 20:9. Stage 3's script in 16:9: the elevator's floor map cell for cell the board's
+    (146 platform cells), the goons from the right landing at x 010C (the board's 010E). Mr. Plow mode's FREE PLAY
+    with Marge, a continue as Homer, both scores raised: the name entry's two columns done by one player (AAA, BAA), it
+    ending at 9048 instead of its time's 10198, its sides brown in its 54 frames looked at. Stage 1's opening as before.
+    --wide-check: stage 3 as before; stage 7 the lift-off's 127 reports as before (now not drawn). The Simpsons
+    Arcade's 25 scenarios identical (state, video, sound). Not checked on a device.

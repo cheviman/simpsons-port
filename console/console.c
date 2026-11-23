@@ -128,6 +128,31 @@ static uint8_t scene_skips[CONSOLE_PLAYERS];    /* each slot's frames of attack 
 static uint8_t scene_skipped;          /* the story's step being skipped whole (0: none) */
 static uint8_t scene_quiet;            /* the frames of black and silence left after a story skipped whole */
 
+/* The name entry after a game (mode_phase 4, name_entry_phase): a column for each slot whose score made the table, each
+   typing its initials with its own slot's controls, its entry (name_entry_records: 3842 + 4 x slot) done at bit 7. A
+   player who continued as another character played two slots, and his controls are on the last one alone: the other
+   column waited for controls nobody had (the players' issue 36). Here a player's controls go to the first of the slots
+   he played this game whose entry is not done, left to right as the columns are, then to the next */
+#define PHASE_NAME_ENTRY    4u
+#define NAME_ENTRY_RECORDS  0x3842u
+#define NAME_ENTRY_DONE     0x80u
+static uint8_t slots_played[CONSOLE_PLAYERS];    /* each player's slots in this game, a bit each (from the choice on) */
+
+static int name_entry_slot(int player, int slot)
+{
+	if (game_mode != GAME_MODE_GAME || mode_phase != PHASE_NAME_ENTRY)
+		return slot;
+	for (int played = 0; played < CONSOLE_PLAYERS; played++)
+		if ((slots_played[player] & (1u << played)) && !(mem_read8((uint16_t)(NAME_ENTRY_RECORDS + 4u * played)) & NAME_ENTRY_DONE))
+			return played;
+	return slot;
+}
+
+void console_slots_played_forget(void)
+{
+	memset(slots_played, 0, sizeof(slots_played));
+}
+
 /* ---- the slots ---- */
 
 /* The slot's record of the players' (player_variable_records, 07E821: four of 27 bytes, the slots' order) */
@@ -252,9 +277,11 @@ void console_controls(const uint8_t pressed[CONSOLE_PLAYERS], uint8_t starts)
 				character_change_frame(player, fresh_of[player], start);
 			else if (start)
 				start_pressed(player);
+			if (console_slot_of[player] >= 0)
+				slots_played[player] |= (uint8_t)(1u << console_slot_of[player]);
 			if (console_slot_of[player] >= 0 && !console.character_change[player])
-				slots[console_slot_of[player]] |= pressed[player];    /* (choosing a character: none, so that his
-					buttons do not hurry the continue's countdown) */
+				slots[name_entry_slot(player, console_slot_of[player])] |= pressed[player];    /* (choosing a character:
+					none, so that his buttons do not hurry the continue's countdown; the name entry: name_entry_slot) */
 		}
 	if (boss_rush_crossing())
 		memset(slots, 0, sizeof(slots));    /* (BOSS RUSH's crossing: its own controls, modes.c) */
@@ -686,6 +713,7 @@ void console_lan_power_on(void)
 	scene_skipped = 0u;
 	scene_quiet = 0u;
 	arcade_test = false;
+	console_slots_played_forget();
 	console_characters_reset();
 	characters_power_on();
 	wide_power_on();

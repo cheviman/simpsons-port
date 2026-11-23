@@ -49,6 +49,25 @@ ROM set, 4 Players World) beside the game, and it makes its assets out of it the
 - **The Konami code kept on the menu**: entered once, it puts a KONAMI CODE line on the menu, after OPTIONS, which
   stays there from then on (`konami_code=1` in simpsons.ini) and opens the code's page.
 
+- **WIDE, stage 7's end: one Smithers** (the players' issue 34): he runs off with Maggie as the camera follows him,
+  only a pixel a frame faster than it, and the cabinet's screen loses him well before the helicopter comes in with him
+  at its window; WIDE's right side kept him in sight, so two Smithers were seen. A scene's character going out
+  through a side now leaves the picture as soon as he left the cabinet's screen (past where its edge was, he goes
+  faster), and in 20:9 the scene's right side is no wider than 16:9's (the rest at the left), as the helicopter would
+  otherwise come into sight while he is still at the cabinet's edge.
+- **WIDE, stage 7's lift-off** (the players' issue 34): as the helicopter takes off, the floor under the kabuki stage
+  and its beams went up the left side; the cabinet never shows that part there. It is no longer drawn in the sides
+  while the helicopter lifts off.
+- **WIDE, the scene before stage 8** (the helicopter flying to the power plant): it was drawn as a stage, its sides
+  and part of the picture blocks of other tiles. It is a picture now, as the other scenes, its sides black.
+- **WIDE, stage 3's elevator: the goons jumping in from the right** (the players' issue 35): they landed on floor that
+  WIDE had left there from the cemetery, off the platform where nothing is drawn, so they vanished and then fell in
+  from above. The elevator's floor is the cabinet's now, its platform alone.
+- **The name entry with two characters** (the players' issue 36): a player who continued as another character has
+  a column for each, and only the last one took his controls. Now his controls type the first column's initials, then
+  the next one's. The screen's sides no longer flash between its colour and black as the Maggies walk past its edges
+  (in WIDE). The many Maggies are the arcade's own.
+
 The game is free, and stays free. To support the decompilations and the ports, and have a say in what comes
 next: [patreon.com/c/ChevimanPorts](https://www.patreon.com/c/ChevimanPorts). Entirely optional.
 

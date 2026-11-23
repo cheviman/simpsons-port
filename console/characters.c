@@ -88,6 +88,7 @@ void choice_open(void)
 		console_slot_of[player] = -1;
 	}
 	console_characters_reset();
+	console_slots_played_forget();
 	console.page = PAGE_CHOICE;
 	console.choice = 0;
 	console.page_frames = 0;

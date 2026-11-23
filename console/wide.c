@@ -92,6 +92,8 @@ static const int k_views[WIDE_AUTO] = { SIMPSONS_VIDEO_WIDTH, 398, 496, 358 };  
 #define ROW_BLOCKS          12           /* the game's new row: 12 blocks from the screen's first (draw_map_row) */
 #define FLOOR_MAP           0x4000u      /* the floor map: 64 cells of 8 pixels a row, 32 rows */
 #define FLOOR_MAP_END       0x4800u
+#define FLOOR_COLUMNS       64u
+#define FLOOR_ROWS          32u
 #define BLOCK_FLAGS         0xF67Cu      /* block_tile_flags: a floor pattern's 16 cells */
 #define BANK_WINDOW_END     0x8000u
 #define FIXED_PROGRAM       0x78000u     /* the fixed program's place in the program ROM (8000-FFFF) */
@@ -427,6 +429,12 @@ uint16_t draw_layer_columns_with_floor_map(uint16_t layer_and_columns)
 	const int x = layer_scroll_x(layer);    /* (its offset set to 0 first) */
 	const uint16_t u = original_draw_layer_columns_with_floor_map(layer_and_columns);
 
+	/* (the floor map's columns the game filled again: none of WIDE's cells in them now, even where it put the value WIDE
+	   had there; else floor_back_to_board would take the game's for WIDE's and put back what was there before: stage 3's
+	   elevator, its platform's floor) */
+	for (int column = 0; column < LEAST(columns, (int)FLOOR_COLUMNS); column++)
+		for (unsigned row = 0; row < FLOOR_ROWS; row++)
+			floor_put[row * FLOOR_COLUMNS + (((unsigned)x >> 3) + (unsigned)column) % FLOOR_COLUMNS] = false;
 	whole_layer_drawn(layer, x, columns);
 	floor_layer = layer;
 	return u;
@@ -634,10 +642,18 @@ static bool edges_masked(void)
    centred, its sides black (Sebas: "cuando cae homero que es cinematica la pondria 4:3"), not the play's sides */
 #define STAGE_2_STEP        4u
 #define STAGE_2_END_PHASE   7u
+/* And stage 7's end (stage_7_end_phase: the helicopter flying to the power plant, a picture on stage 7's scene, its
+   area 1): its map is not a play's, and WIDE drew the play's sides of it, the lift-off's left side of 112 pixels, as
+   blocks of other tiles round the plant and down the sides (Sebas, with the players' issue 34: "hay un error de
+   fondo") */
+#define STAGE_7_STEP        0x0Du
+#define STAGE_7_CLOSING     7u
+#define STAGE_7_END_PHASE   8u
 
 static bool closing_story(void)
 {
-	return game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE;
+	return (game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE)
+		|| (game_step == STAGE_7_STEP && step_phase == STAGE_7_END_PHASE);
 }
 
 /* A stage's play: its maps drawn, the game's steps going on */
@@ -661,6 +677,15 @@ static bool in_play(void)
 static bool elevator(void)
 {
 	return game_step == ELEVATOR_STEP && stage_scroll_step < ELEVATOR_PLAY;
+}
+
+/* Stage 7's closing scene once the helicopter lifts off (stage_7_scene_lift: layer B's y going up, a row of its cells
+   blanked as it goes): the board's columns of layer B have nothing there, but its map left of them, which WIDE's left
+   side shows (the kabuki stage's deck and the beams under it), would go up the side (the players' issue 34) */
+static bool helicopter_lift(void)
+{
+	return game_step == STAGE_7_STEP && step_phase == STAGE_7_CLOSING && rings[1].known
+		&& (uint16_t)layer_scroll_y(1) != rings[1].y;
 }
 
 static int what_shows(void)
@@ -704,6 +729,12 @@ static void camera_room(int *room_left, int *room_right)
 	(void)room_left;
 }
 
+/* Stage 7's closing scene: Smithers runs off to the right with Maggie, and the helicopter he is then seen in comes in
+   from the right as the camera follows him. The cabinet's screen has him gone 14 frames before it; a right side wider
+   than 48 shows the helicopter, him at its window, while he still runs at the board's edge (20:9's 88: the players'
+   issue 34). Its right side no more than that, the rest at the left */
+#define HELICOPTER_RIGHT    48
+
 /* The play's sides as they come to be: as wide as WIDE's at each side, but no further than a layer's map goes (the
    rest to the other side) */
 static void play_sides(int side, int *left, int *right)
@@ -721,6 +752,8 @@ static void play_sides(int side, int *left, int *right)
 		room_right = LEAST(room_right, MOST(map.width - (x + SIMPSONS_VIDEO_WIDTH), 0));
 	}
 	camera_room(&room_left, &room_right);
+	if (game_step == STAGE_7_STEP && step_phase == STAGE_7_CLOSING)
+		room_right = LEAST(room_right, HELICOPTER_RIGHT);
 	*left = LEAST(side, room_left);
 	*right = LEAST(side, room_right);
 	more = 2 * side - *left - *right;
@@ -1229,7 +1262,11 @@ void console_wide_frame(void)
 			}
 			follow_ring(layer);
 			draw_side_columns(layer, &map, wide_left_now, wide_right_now);
-			simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
+			if (layer == 1 && helicopter_lift())
+				simpsons_video_set_layer_window(1 + layer, fixed_first, fixed_last);    /* (stage 7's lift-off: layer B
+					in the board's columns alone) */
+			else
+				simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
 		}
 		const int boss_from = boss_shown_from();
 
@@ -1268,6 +1305,10 @@ void console_wide_frame(void)
 			}
 			simpsons_video_set_layer_window(1 + layer, -0x10000, 0x10000);
 		}
+		if (climb)
+			floor_back_to_board();    /* (the elevator's floor map the board's, cell for cell: its platform alone, the
+				rest walls. WIDE's cells of the cemetery's map stayed beside the platform, and a goon jumping in from the right
+				landed on them, off the platform, unseen, and fell in from above: the players' issue 35) */
 		climb_now = climb && (wide_left_now || wide_right_now);
 #if CLIMB_SIDES
 		if (climb_now)
@@ -1318,8 +1359,9 @@ void console_wide_frame(void)
 
 /* ---- the pictures' sides ---- */
 
-/* A column's colour, when nearly all of its rows have it (else black) */
-static uint32_t edge_colour(const console_picture *frame, int x)
+/* A column's colour, when nearly all of its rows have it (else black); 'most', the one most of its rows have and how
+   many */
+static uint32_t edge_colour(const console_picture *frame, int x, uint32_t *most, int *rows)
 {
 	uint32_t colours[8];
 	int counts[8], kinds = 0, best = 0;
@@ -1343,8 +1385,17 @@ static uint32_t edge_colour(const console_picture *frame, int x)
 	for (int kind = 1; kind < kinds; kind++)
 		if (counts[kind] > counts[best])
 			best = kind;
+	*most = kinds ? colours[best] : 0x000000u;
+	*rows = kinds ? counts[best] : 0;
 	return kinds && counts[best] * 10 >= SIMPSONS_VIDEO_HEIGHT * 9 ? colours[best] : 0x000000u;
 }
+
+/* The sides' colour as a picture goes on: kept while both edges are still mostly it, whatever crosses them (the name
+   entry's Maggies walking along its bottom took a tenth of its edges' rows, and its brown sides went black and back as
+   each one passed: the players' issue 36, "this screen still has strange flashing") */
+#define SIDES_KEPT_ROWS     (SIMPSONS_VIDEO_HEIGHT * 2 / 3)
+static uint32_t sides_kept;
+static bool sides_kept_on;
 
 /* Over the frame the video drew: a picture's sides (and the board's edges the cabinet showed black) in its edges'
    colour, or black */
@@ -1353,13 +1404,31 @@ void wide_picture_sides(console_picture *frame)
 	const int first = fixed_first ? fixed_first : 0, last = SIMPSONS_VIDEO_WIDTH - 1 - first;
 
 	if (shown_drawn != SHOW_PICTURE || (CLIMB_SIDES && climb_drawn) || (!frame->left && !frame->right))
-		return;    /* (stage 3's elevator, CLIMB_SIDES: its sides of the shaft's own cells, climb_fill) */
 	{
-		const uint32_t left = black_drawn ? 0x000000u : edge_colour(frame, first);
-		const uint32_t right = black_drawn ? 0x000000u : edge_colour(frame, last);
+		sides_kept_on = false;
+		return;    /* (stage 3's elevator, CLIMB_SIDES: its sides of the shaft's own cells, climb_fill) */
+	}
+	{
+		uint32_t left_most, right_most;
+		int left_rows, right_rows;
+		const uint32_t left = edge_colour(frame, first, &left_most, &left_rows);
+		const uint32_t right = edge_colour(frame, last, &right_most, &right_rows);
 		/* (both sides one colour only when both edges are it, a backdrop: the TV's orange, the cards' lilac; a scene
 		   with one edge of one colour, Bart's profile's green, as 4:3 on black, the players' issue 24) */
-		const uint32_t sides = left == right ? left : 0x000000u;
+		uint32_t sides = left == right ? left : 0x000000u;
+
+		if (black_drawn)
+			sides = 0x000000u;
+		else if (sides != 0x000000u)
+		{
+			sides_kept = sides;
+			sides_kept_on = true;
+		}
+		else if (sides_kept_on && left_most == sides_kept && right_most == sides_kept && left_rows >= SIDES_KEPT_ROWS
+			&& right_rows >= SIDES_KEPT_ROWS)
+			sides = sides_kept;
+		else
+			sides_kept_on = false;
 
 		draw_fill(frame, PICTURE_FIRST(frame), 0, first - PICTURE_FIRST(frame), SIMPSONS_VIDEO_HEIGHT, sides);
 		draw_fill(frame, last + 1, 0, PICTURE_END(frame) - last - 1, SIMPSONS_VIDEO_HEIGHT, sides);
@@ -2748,9 +2817,59 @@ static bool story_actors_leaving(void)
 	return false;
 }
 
+/* A scene's actor (not a player) going out through a side leaves the picture when it left the cabinet's screen: past
+   the edge the board showed, each frame's move taken further by the side's width over what the board had left to go
+   (to its 0 or 018F, story_actor_finish_frame). Stage 7's end: Smithers runs off at 1 pixel a frame past the camera
+   following him; the board takes him off 32 pixels past its edge, unseen, and WIDE only past its side, so he was still
+   in it as the helicopter came in with him aboard (the players' issue 34) */
+#define STORY_LEFT_GONE     0x0000       /* (story_actor_finish_frame's limits) */
+#define STORY_RIGHT_GONE    0x018F
+#define STORY_PLAYERS       8            /* (objects 0-7: the players and theirs, who walk as they do) */
+
+static int16_t story_last_x[STORY_OBJECT];
+static uint64_t story_last_frame[STORY_OBJECT];
+static int story_more[STORY_OBJECT];    /* (sixteenths of a pixel carried to the next frame) */
+
+static void story_actor_out_as_board(uint16_t object)
+{
+	const int number = object >= OBJECT_ADDRESS(0) ? (int)((object - OBJECT_ADDRESS(0)) / 0x60u) : -1;
+	const int seen_left = OBJECT_LEFT + fixed_first + SIGHT_HALF;    /* (its sprite beginning to leave the board's sight,
+		its black edges, which take 2 * SIGHT_HALF to cross; in the picture the side and those edges more) */
+	const int seen_right = OBJECT_RIGHT - fixed_first - SIGHT_HALF;
+	const int gone = 2 * SIGHT_HALF;
+	int x, moved, picture_left, picture_right, more = 0;
+	bool followed;
+
+	if (number < STORY_PLAYERS || number >= STORY_OBJECT || (object - OBJECT_ADDRESS(0)) % 0x60u)
+		return;    /* (the players, the scene's own actor and the children's slots elsewhere) */
+	x = (int16_t)OBJECT(object)->x;
+	followed = story_last_frame[number] + 1u == simpsons_board.frame;
+	moved = x - story_last_x[number];
+	story_last_frame[number] = simpsons_board.frame;
+	if (!followed)
+	{
+		story_last_x[number] = (int16_t)x;
+		story_more[number] = 0;
+		return;
+	}
+	play_sides_now(&picture_left, &picture_right);
+	if (moved > 0 && x > seen_right && picture_right > 0)
+		more = story_more[number] + moved * (picture_right + fixed_first) * 16 / gone;
+	else if (moved < 0 && x < seen_left && picture_left > 0)
+		more = story_more[number] + moved * (picture_left + fixed_first) * 16 / gone;
+	else
+		story_more[number] = 0;
+	if (more)
+	{
+		OBJECT(object)->x = (uint16_t)(x + more / 16);
+		story_more[number] = more % 16;
+	}
+	story_last_x[number] = (int16_t)OBJECT(object)->x;
+}
+
 /* The game's story_actor_finish_frame (scenes/story_actor.c): a scene's actor taken off the screen past the wider
    screen's sides, not in them (stage 1's opening: Smithers' goons gone where the cabinet's screen ended; Sebas,
-   "Desaparece en 4:3") */
+   "Desaparece en 4:3"), and going out through them as fast as it left the board's screen (story_actor_out_as_board) */
 uint16_t story_actor_finish_frame(uint16_t object, uint16_t u)
 {
 	uint8_t actor_script = 0, count = 0;
@@ -2818,9 +2937,10 @@ uint16_t story_actor_finish_frame(uint16_t object, uint16_t u)
 	actor_script = parameter;
 	if (actor_script == 0x21u || actor_script == 0xDu)
 		return u;
+	story_actor_out_as_board(object);    /* (WIDE: out as on the board) */
 	actor_x = OBJECT(object)->x;
 	x_now = actor_x;
-	if (!beyond_limits((int16_t)x_now, 0, 0x18F))    /* (WIDE: its sides) */
+	if (!beyond_limits((int16_t)x_now, STORY_LEFT_GONE, STORY_RIGHT_GONE))    /* (WIDE: its sides) */
 	{
 		z = OBJECT(object)->z;
 		z_now = z;

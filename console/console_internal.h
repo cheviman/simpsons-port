@@ -275,6 +275,8 @@ bool console_repeats_allowed(void);
 int console_slot_for_character(int player, int character);
 /* The slots back to their own characters (a game's end) */
 void console_characters_reset(void);
+/* The slots each player has played in this game forgotten (a game's choice, the power-on): console.c's name entry */
+void console_slots_played_forget(void);
 /* The choice on the portraits: a slot another character plays on keeps its portrait from coming alive (the
    character's own box is the one picked) */
 void same_character_portraits(void);
