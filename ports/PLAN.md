@@ -787,3 +787,12 @@ day: What was done, 15-11-2026).
   (CMakeLists.txt), docs/releases/v1.0.3.md, testing.md's list emptied; main fast-forwarded to testing, the tag v1.0.3
   once the CI is green on that commit. The 25 scenarios identical. Issue 26 (stage 6 closing) not reproduced in 35
   runs: waiting for the player's log. Not tried on a device.
+- **23-11-2026, 1.0.4** (Sebas: "ok, comiteemo, hagamos version nueva y push"): the players' issues 29 (WIDE: stage
+  2's mailboxes, its fat goons' obstacles, Krusty's balloon fight, Lisa's box closed at its right, the screen's edges by
+  name in every stage), 30 (the Switch's .nro with no space in their names, for a forwarder), 31 (stage 8: Smithers
+  stuck off the screen), 32 (the ending in Mr. Burns' office as 4:3, Lisa's box's top corner and her box on the
+  character choice; the hat throwers' hat is the cabinet's own), 34 (stage 7's end: one Smithers, the lift-off, the
+  scene before stage 8), 35 (stage 3's elevator) and 36 (the name entry with two characters), and the menu without
+  INTRO with the Konami code kept on it (console/PLAN.md); version 1.0.4 (CMakeLists.txt), docs/releases/v1.0.4.md,
+  testing.md's list emptied; main fast-forwarded to testing, the tag v1.0.4 once the CI is green on that commit. The
+  25 scenarios identical. Not tried on a device.
