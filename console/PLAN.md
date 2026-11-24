@@ -938,3 +938,80 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
     pixels changed are in Lisa's closing column alone (352, 336 and 392), rows 8 to 26: row 8 gone in the play's
     frames, rows 9 to 26 added on the choice and in the attract's demo; with WIDE off nothing. Nothing outside
     console/ changed. Not checked on a device.
+- **24-11-2026, the players' issue 38** (the reporter, with WIDE via Sphaira's forwarder on the Switch: "Police car is
+  missing from stage one again", "Stage 2 mailbox is not present in the entrance animation", the Krusty fight's
+  "repeating tiles (partial Ferris-wheel, partial cloud, partial roller coaster, strange repeating floor pattern)" and
+  the fun house seen to "slide away", stage 7's exit, "the graveyard finale exit has human characters and ghost
+  characters appear out of almost the center", "falling from the waterfall is not" fixed, "the intro and outro scenes
+  for the dream stage are also still broken"; Sebas: "revisemos con ganas el 38", and on the choices: Krusty "cielo
+  liso, repetir solo lo parejo, el relleno arranca antes", stage 7 "4:3 con negro en el cierre", the cemetery's pop-in
+  at the cabinet's edge left, the hat throwers the cabinet's own):
+  - Stage 1's police car by the fire station (list 1 type 05, kind 0F; E9 is the car driving in, list 0): its spawn came
+    by WIDE's right side while list 1 was full (WIDE's sides keep its props and figures longer), and the game passes
+    over a spawn with no free object. spawn_stage_objects: a spawn due by WIDE's side alone whose list is full waits
+    apart (waiting_spawns, put_in_waiting: tried again at each frame, in the save state) till the board's own edge comes
+    to it, and only then is passed over, as on the board; the rest of the list goes on (a first try held the whole list:
+    what came after it came late, in WIDE's sight). It may come in at the right side's edge (4366, x 01A6).
+  - Stage 2's mailbox in the balloon walk-in: the game runs list 1 once as the stage begins (start_stage_objects), when
+    WIDE has no sides yet and the mailbox was put past the side as a goon's spawn; settle_moved_spawns puts it back two
+    frames later, but list 1 does not run again till the players have landed. obstacle_up_in_sight (from
+    settle_moved_spawns): an object of list 1 of type 00 (obstacle_update), state 0, set up (action != 0), goes through
+    obstacle_start then, which puts it up where WIDE shows it.
+  - The stage's event (list 3, flags 0C, object 32: the scene's own actor) due as on the board (event_spawn, waiting
+    apart in put_in_waiting, the rest of the list going on; held behind it, the props and figures after it came in late,
+    in WIDE's sight: --wide-check's reports doubled): put in by WIDE's right side it stood that far past its place, and
+    the scene's actors are put in from its x: stage 3's closing had its goons and ghosts 0x30 in (object 32 at 01C0 for
+    0190). With it the camera stops are the cabinet's (stage 7's script: 03A0, 0680, 07F8 and 08CF as with WIDE off;
+    1.0.4 in 16:9 stopped at 0370 and never at 0680).
+  - Stage 5's end (step 9, phase 8: the waterfall, scene 89 area 1) and stage 6's (step 11, phase 8: the family on the
+    grass, scene 89 area 3) in closing_story: 4:3 with black sides (WIDE drew them as plays, the board's part at the
+    right and the map's left side: the sky's colour, the grass's stripes).
+  - Stage 7's closing from the boss's fall (step 13, phase 5 on) in closing_story: 4:3 with black sides. Compared with
+    the cabinet first: the black line at the right is the doors' frame (the board's 301-303), the green and brown
+    stripes come in on the cabinet too, the black at the lower left is the map's end, the helicopter is drawn by its
+    columns as it comes in on the cabinet too; WIDE's board part the 4:3 frame's pixel for pixel. helicopter_lift and
+    HELICOPTER_RIGHT (issue 34) taken out: never reached now.
+  - Krusty's balloon fight: boss_side_fill made again. boss_shown_from follows the camera's entries to the boss's stop
+    (as camera_room); each ring row takes its period (1 to 16) from up to 32 of the board's columns, from the fight's
+    first column (0710) or the cabinet's edge, the further; a row repeats (its last period's cells) only when three
+    quarters of its cells keep the period, else it goes on as its most common cell (the sky's); the cells only from
+    columns the ring has drawn (rings[].first to last), and the cabinet's columns never written (1.0.4 wrote over the
+    board's own from camera 0640, and scored columns not drawn yet: the partial Ferris wheel and the odd floor). The
+    fill ends at the cabinet's edge less the distance of the fight's first column from it: a wipe in from the picture's
+    left end (from camera 06C4 in 16:9) as the fun house's wall goes out through the cabinet's edge.
+  - Checked (the console's headless; a probe of the objects and the spawns, since taken out): stage 1's script, the car
+    parked by the fire station from 4300 to 5500 in 16:9, 20:9 and 16:10 (never seen in 1.0.4's 16:9); stage 2's, the
+    mailbox up at 2600, 2700 and 2800 in the three; stage 3's, its closing's goons put in at 0048 and 0060 as with WIDE
+    off (0078 and 0090 before); stage 5's and 6's ends 4:3 in 16:9; stage 7's closing a picture from 32466 to the
+    plant's scene, stage 8's start as before; Krusty's approach (13420-13660) and fight (14200-16300) in 16:9, the fight
+    in 20:9 and 16:10: plain sky, no Ferris wheel's pieces; after the deck gives way (20:9) the left side goes on as the
+    deck's rows, horizontal stripes. WIDE off: every frame's state and picture hashes of the 8 stage scripts (40000
+    frames) identical to 1.0.4's (again with the final build); SIMPSONS_WIDE_AUDIT: nothing drawn only as it came in, in
+    16:9 and 20:9; --wide-check in 16:9, the spawns put in in the sides' sight per stage as 1.0.4's (4 to 8; stage 7 133
+    to 7, its closing a picture now). The local worker's review of the diff: no defects (its two risky places read: the
+    break delays a later spawn at most to the board's time, the list being by x; original_obstacle_start with state 0,
+    set up, off the screen does nothing). Nothing outside console/ changed. Not checked on a device.
+- **24-11-2026, OPTIONS > ORIGINAL COLORS** (the players' issue 33: "an option to toggle between "canon" (newly fixed)
+  and "arcade" (original release) colors"; Sebas: "agreguemos una opcion nueva en options que sea "original colors"
+  para saltear el fix que pusimos en los colores"): a line after DEMO SOUND in both OPTIONS variants
+  (OPTION_ORIGINAL_COLORS),
+  ON when console_settings.bart_shirt is false (the cabinet's light blue), toggled as DEMO SOUND is and applied at once
+  (console_bart_shirt_apply); the window keeps it in simpsons.ini as before (bart_shirt=orange|arcade). The first draft
+  by the local worker, from a spec with a check (its FIND/REPLACE blocks applied to a copy: both enums and item lists,
+  the toggle, the line), right at the first try.
+  - Checked: simpsons_console_headless with --actions, OPTIONS shows ORIGINAL COLORS OFF, ACCEPT makes it ON. With 12
+    lines the page's BACK sits at the TV's lower edge. Left for Sebas: the reporter's second point, the Simpsons
+    cabinet's Bart in Moe's Tavern kept blue with the fix on. Not checked on a device.
+- **24-11-2026, OPTIONS shorter** (Sebas, on OPTIONS with ORIGINAL COLORS: "si queda largo, reorganicemos, mete screen
+  dentro de video, hace una opcion nueva de sound, que tenga demo sound, volume y sound, que siempre inicie en stereo, y
+  si tiene menu ponele un > o algo para indicar que es menu"): OPTIONS is CONTROLS, DIFFICULTY, LIVES, CONTINUES,
+  ORIGINAL COLORS, VIDEO, SOUND, BACK (8 lines; 7 with FIXED_CONTROLS); SCREEN before VIDEO's BACK (both variants);
+  a new page PAGE_SOUND (console_internal.h, at the enum's end; console.c's page names "sound": without it the
+  headless's line for a picture of it read past the table and crashed) with DEMO SOUND, VOLUME, SOUND, BACK, their
+  code moved from options_page as it was (settings_touched alike), BACK to OPTIONS' SOUND line; CONTROLS, VIDEO and
+  SOUND drawn with ">" (draw.c's own glyph). console_settings.stereo true by default, and the window no longer reads
+  or writes sound= in simpsons.ini: STEREO at every start. The draft by the local worker (whole menu.c given, a check
+  applying its blocks, checking the pages' structure and building the headless), right after 2 fixes of its own.
+  - Checked: the headless, --actions through OPTIONS, VIDEO and SOUND (pictures of the three, SOUND STEREO at the
+    start); the console headless, The Simpsons Mr. Plow Edition and The Simpsons Arcade Game built with no warnings.
+    Not checked on a device.

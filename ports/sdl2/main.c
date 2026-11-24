@@ -2166,7 +2166,6 @@ static void save_settings(void)
 		"; continues: ARCADE's continues, 0 to 9 or unlimited\ncontinues=%s\n"
 		"; demo_sound: 1 the sound while the game shows itself, 0 none (the cabinet's)\ndemo_sound=%d\n"
 		"; screen: normal or upside down (the cabinet's)\nscreen=%s\n"
-		"; sound: mono (as the cabinet is wired) or stereo\nsound=%s\n"
 		"; bart_shirt: orange (Bart's shirt orange, as on the show, Barney's salmon) or arcade (the cabinet's)\n"
 		"bart_shirt=%s\n"
 		"; konami_code: 1 the Konami code has been entered on the menu (its KONAMI CODE line), 0 not yet\n"
@@ -2175,7 +2174,7 @@ static void save_settings(void)
 		settings->integer_scale,
 		console_wide_names[settings->wide], settings->vsync, settings->volume, settings->fps,
 		console_difficulty_names[settings->game_difficulty], settings->game_lives, continues, settings->demo_sound,
-		settings->upside_down ? "upside down" : "normal", settings->stereo ? "stereo" : "mono",
+		settings->upside_down ? "upside down" : "normal",
 		settings->bart_shirt ? "orange" : "arcade", settings->konami_code);
 	if (settings->name[0])
 		fprintf(output, "; name: this device's in MULTIPLAYER's rooms\nname=%s\n", settings->name);
@@ -2234,8 +2233,7 @@ static void load_settings(void)
 			settings->demo_sound = number != 0;
 		else if (strncmp(line, "screen=", 7) == 0)
 			settings->upside_down = strcmp(line + 7, "upside down") == 0;
-		else if (strncmp(line, "sound=", 6) == 0)
-			settings->stereo = strcmp(line + 6, "stereo") == 0;    /* (OPTIONS > SOUND: stereo or mono) */
+		/* (sound= no longer: the game starts in stereo every time, Sebas: "que siempre inicie en stereo") */
 		else if (strncmp(line, "name=", 5) == 0 && line[5] && strlen(line + 5) <= CONSOLE_NAME_LENGTH
 			&& strspn(line + 5, " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") == strlen(line + 5))
 			snprintf(settings->name, sizeof(settings->name), "%s", line + 5);    /* (MULTIPLAYER > NAME) */

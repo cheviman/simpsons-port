@@ -36,8 +36,8 @@ enum
 	PAGE_MENU,             /* ARCADE, MR. PLOW MODE, MULTIPLAYER, OPTIONS, KONAMI CODE (once the code has been
 	                          entered), EXIT, on the TV (tv.c) */
 	PAGE_MR_PLOW,          /* MR. PLOW MODE: the console's own modes (modes.c) */
-	PAGE_OPTIONS,          /* CONTROLS, the cabinet's settings, VIDEO, VOLUME, the version */
-	PAGE_VIDEO,            /* OPTIONS > VIDEO: the window's size, full screen, the pixels, VSYNC, FPS */
+	PAGE_OPTIONS,          /* CONTROLS, the cabinet's settings, ORIGINAL COLORS, VIDEO, SOUND, the version */
+	PAGE_VIDEO,            /* OPTIONS > VIDEO: the window's size, full screen, the pixels, VSYNC, FPS, SCREEN */
 	PAGE_CONTROLS,         /* OPTIONS > CONTROLS: each player's keys and game controller buttons */
 	PAGE_STARTING,         /* ARCADE's coin going in, the game starting */
 	PAGE_CHOICE,           /* the game's portraits: each player chooses his character (characters.c) */
@@ -48,7 +48,8 @@ enum
 	PAGE_LAN_ROOM,         /* and the room's devices */
 	PAGE_KONAMI,           /* the Konami code's page, from the menu: its stage, lives, health and characters
 	                          (konami.c) */
-	PAGE_ATTRACT           /* the cabinet's own attract mode, no menu over it, till any button (console.c) */
+	PAGE_ATTRACT,          /* the cabinet's own attract mode, no menu over it, till any button (console.c) */
+	PAGE_SOUND             /* OPTIONS > SOUND: DEMO SOUND, VOLUME, SOUND (menu.c) */
 };
 
 /* The lives a credit gives and the continues after the first credit in a game of the console's own modes (TMNT's

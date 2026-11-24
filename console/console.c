@@ -63,7 +63,8 @@ int console_slot_of[CONSOLE_PLAYERS];    /* (-1 each from console_attach on) */
 /* The factory's (assets/eeprom.txt): NORMAL, 2 lives, the attract mode's sound on, the screen the right way up */
 console_settings_t console_settings = { .window_scale = 3, .pixels = PIXELS_SHARP, .volume = 5, .vsync = true,
 	.wide = WIDE_AUTO, .game_difficulty = 1, .game_lives = 2, .game_continues = CONSOLE_CONTINUES_DEFAULT,
-	.demo_sound = true, .upside_down = false, .bart_shirt = true };
+	.demo_sound = true, .upside_down = false, .bart_shirt = true, .stereo = true };    /* (STEREO at every start:
+	   Sebas, "que siempre inicie en stereo"; OPTIONS > SOUND > SOUND makes it MONO till the game closes) */
 
 const char *const console_pixel_names[PIXELS_KINDS] = { "sharp", "smooth", "bilinear", "crt" };
 const char *const console_wide_names[WIDE_KINDS] = { "off", "16:9", "20:9", "16:10", "auto" };
@@ -846,7 +847,7 @@ void console_restart_game(void)
 void console_describe(char *text, size_t size)
 {
 	static const char *const pages[] = { "presentation", "menu", "mr. plow mode", "options", "video", "controls",
-		"starting", "choice", "game", "lan", "lan name", "lan rooms", "lan room", "konami", "attract" };
+		"starting", "choice", "game", "lan", "lan name", "lan rooms", "lan room", "konami", "attract", "sound" };
 	char konami[160] = "";
 	const uint8_t *eeprom = simpsons_board.eeprom.data;
 

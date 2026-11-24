@@ -89,19 +89,20 @@ enum { PLOW_FREE_PLAY, PLOW_BOSS_RUSH, PLOW_BONUS_GAMES, PLOW_FRANK_GRIMES, PLOW
 #define FIXED_CONTROLS    /* (no CONTROLS in OPTIONS) */
 #endif
 #ifdef FIXED_CONTROLS
-enum { OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_DEMO_SOUND, OPTION_SCREEN, OPTION_VIDEO,
-	OPTION_VOLUME, OPTION_SOUND, OPTION_BACK, OPTION_ITEMS, OPTION_CONTROLS = 100 };
+enum { OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_ORIGINAL_COLORS, OPTION_VIDEO, OPTION_SOUND,
+	OPTION_BACK, OPTION_ITEMS, OPTION_CONTROLS = 100 };
 #else
-enum { OPTION_CONTROLS, OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_DEMO_SOUND, OPTION_SCREEN,
-	OPTION_VIDEO, OPTION_VOLUME, OPTION_SOUND, OPTION_BACK, OPTION_ITEMS };
+enum { OPTION_CONTROLS, OPTION_DIFFICULTY, OPTION_LIVES, OPTION_CONTINUES, OPTION_ORIGINAL_COLORS, OPTION_VIDEO,
+	OPTION_SOUND, OPTION_BACK, OPTION_ITEMS };
 #endif
 #ifdef SIMPSONS_HANDHELD
-enum { VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_FPS, VIDEO_BACK, VIDEO_ITEMS, VIDEO_WINDOW = 100, VIDEO_FULL_SCREEN,
-	VIDEO_WIDE, VIDEO_VSYNC };
+enum { VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_FPS, VIDEO_SCREEN, VIDEO_BACK, VIDEO_ITEMS, VIDEO_WINDOW = 100,
+	VIDEO_FULL_SCREEN, VIDEO_WIDE, VIDEO_VSYNC };
 #else
 enum { VIDEO_WINDOW, VIDEO_FULL_SCREEN, VIDEO_PIXELS, VIDEO_INTEGER_SCALE, VIDEO_WIDE, VIDEO_VSYNC, VIDEO_FPS,
-	VIDEO_BACK, VIDEO_ITEMS };
+	VIDEO_SCREEN, VIDEO_BACK, VIDEO_ITEMS };
 #endif
+enum { SOUND_DEMO_SOUND, SOUND_VOLUME, SOUND_STEREO, SOUND_BACK, SOUND_ITEMS };
 enum { KONAMI_STAGE, KONAMI_LIVES, KONAMI_HEALTH, KONAMI_REPEATS, KONAMI_START, KONAMI_BACK, KONAMI_ITEMS };
 
 #ifdef SIMPSONS_SYSTEM_EXIT
@@ -123,18 +124,19 @@ static const char *const plow_about[PLOW_ITEMS][2] = {
 	{ "", "" },
 };
 #ifdef FIXED_CONTROLS
-static const char *const option_items[OPTION_ITEMS] = { "DIFFICULTY", "LIVES", "CONTINUES", "DEMO SOUND", "SCREEN",
-	"VIDEO", "VOLUME", "SOUND", "BACK" };
+static const char *const option_items[OPTION_ITEMS] = { "DIFFICULTY", "LIVES", "CONTINUES", "ORIGINAL COLORS",
+	"VIDEO", "SOUND", "BACK" };
 #else
-static const char *const option_items[OPTION_ITEMS] = { "CONTROLS", "DIFFICULTY", "LIVES", "CONTINUES", "DEMO SOUND",
-	"SCREEN", "VIDEO", "VOLUME", "SOUND", "BACK" };
+static const char *const option_items[OPTION_ITEMS] = { "CONTROLS", "DIFFICULTY", "LIVES", "CONTINUES",
+	"ORIGINAL COLORS", "VIDEO", "SOUND", "BACK" };
 #endif
 #ifdef SIMPSONS_HANDHELD
-static const char *const video_items[VIDEO_ITEMS] = { "PIXELS", "INTEGER SCALE", "FPS", "BACK" };
+static const char *const video_items[VIDEO_ITEMS] = { "PIXELS", "INTEGER SCALE", "FPS", "SCREEN", "BACK" };
 #else
 static const char *const video_items[VIDEO_ITEMS] = { "WINDOW", "FULL SCREEN", "PIXELS", "INTEGER SCALE", "WIDE",
-	"VSYNC", "FPS", "BACK" };
+	"VSYNC", "FPS", "SCREEN", "BACK" };
 #endif
+static const char *const sound_items[SOUND_ITEMS] = { "DEMO SOUND", "VOLUME", "SOUND", "BACK" };
 static const char *const konami_items[KONAMI_ITEMS] = { "STAGE", "LIVES", "HEALTH", "REPEAT CHARACTERS", "START",
 	"BACK" };
 /* (the test mode's own words: 8-3 DIFFICULTY's lines) */
@@ -283,6 +285,9 @@ static void options_page(uint32_t pressed)
 			case OPTION_VIDEO:
 				open_page(PAGE_VIDEO, 0);
 				return;
+			case OPTION_SOUND:
+				open_page(PAGE_SOUND, SOUND_DEMO_SOUND);
+				return;
 			default:
 				break;
 		}
@@ -310,19 +315,40 @@ static void options_page(uint32_t pressed)
 			settings->changed = true;
 			break;
 		}
-		case OPTION_DEMO_SOUND:
+		case OPTION_ORIGINAL_COLORS:
+			settings->bart_shirt = !settings->bart_shirt;
+			console_bart_shirt_apply();
+			settings_touched = true;
+			break;
+		default:
+			break;
+	}
+}
+
+/* SOUND: DEMO SOUND, VOLUME and SOUND (stereo/mono); the port applies them */
+static void sound_page(uint32_t pressed)
+{
+	const int by = change(pressed) ? change(pressed) : (chosen_now(pressed) ? 1 : 0);
+	console_settings_t *settings = &console_settings;
+
+	if ((pressed & ACTION_BIT(ACTION_BACK)) || (chosen_now(pressed) && console.choice == SOUND_BACK))
+	{
+		open_page(PAGE_OPTIONS, OPTION_SOUND);
+		return;
+	}
+	if (!by)
+		return;
+	switch (console.choice)
+	{
+		case SOUND_DEMO_SOUND:
 			settings->demo_sound = !settings->demo_sound;
 			settings_touched = true;
 			break;
-		case OPTION_SCREEN:
-			settings->upside_down = !settings->upside_down;
-			settings_touched = true;
-			break;
-		case OPTION_VOLUME:
+		case SOUND_VOLUME:
 			settings->volume = step_value(settings->volume, by, 0, 10);
 			settings->changed = true;
 			break;
-		case OPTION_SOUND:
+		case SOUND_STEREO:
 			settings->stereo = !settings->stereo;    /* (the port's: STEREO, the YM2151's two outputs) */
 			settings->changed = true;
 			break;
@@ -373,6 +399,10 @@ static void video_page(uint32_t pressed)
 			break;
 		case VIDEO_FPS:
 			settings->fps = !settings->fps;
+			break;
+		case VIDEO_SCREEN:
+			settings->upside_down = !settings->upside_down;
+			settings_touched = true;
 			break;
 		default:
 			return;
@@ -774,6 +804,7 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 		case PAGE_LAN_ROOM: lines = console_lan_hosting() ? 2 : 1; break;
 		case PAGE_OPTIONS: lines = OPTION_ITEMS; break;
 		case PAGE_VIDEO: lines = VIDEO_ITEMS; break;
+		case PAGE_SOUND: lines = SOUND_ITEMS; break;
 		case PAGE_KONAMI: lines = KONAMI_ITEMS; break;
 		default: break;
 	}
@@ -824,6 +855,9 @@ void menu_frame(uint32_t pressed, const uint32_t player_pressed[CONSOLE_PLAYERS]
 			break;
 		case PAGE_VIDEO:
 			video_page(pressed);
+			break;
+		case PAGE_SOUND:
+			sound_page(pressed);
 			break;
 		case PAGE_CONTROLS:
 			controls_page(pressed);
@@ -897,7 +931,7 @@ static void options_overlay(void)
 
 	page_box("OPTIONS", OPTION_ITEMS);
 #ifndef FIXED_CONTROLS
-	option_line(option_items, OPTION_CONTROLS, NULL);
+	option_line(option_items, OPTION_CONTROLS, ">");
 #endif
 	option_line(option_items, OPTION_DIFFICULTY, difficulties[console_settings.game_difficulty]);
 	snprintf(value, sizeof(value), "%d", console_settings.game_lives);
@@ -907,12 +941,9 @@ static void options_overlay(void)
 	else
 		snprintf(value, sizeof(value), "%d", console_settings.game_continues);
 	option_line(option_items, OPTION_CONTINUES, value);
-	option_line(option_items, OPTION_DEMO_SOUND, console_settings.demo_sound ? "ON" : "OFF");
-	option_line(option_items, OPTION_SCREEN, console_settings.upside_down ? "UPSIDE DOWN" : "NORMAL");
-	option_line(option_items, OPTION_VIDEO, NULL);
-	snprintf(value, sizeof(value), "%d", console_settings.volume);
-	option_line(option_items, OPTION_VOLUME, value);
-	option_line(option_items, OPTION_SOUND, console_settings.stereo ? "STEREO" : "MONO");
+	option_line(option_items, OPTION_ORIGINAL_COLORS, console_settings.bart_shirt ? "OFF" : "ON");
+	option_line(option_items, OPTION_VIDEO, ">");
+	option_line(option_items, OPTION_SOUND, ">");
 	option_line(option_items, OPTION_BACK, NULL);
 	draw_game_letters(target, LINE_RIGHT - draw_game_letters_width(VERSION_TEXT, 1), LINE_Y + OPTION_BACK * LINE_STEP,
 		1, VERSION_COLOUR, VERSION_TEXT);    /* (in the panel, at BACK's right: the board's middle, in every WIDE) */
@@ -943,7 +974,20 @@ static void video_overlay(void)
 	option_line(video_items, VIDEO_VSYNC, console_settings.vsync ? "ON" : "OFF");
 #endif
 	option_line(video_items, VIDEO_FPS, console_settings.fps ? "ON" : "OFF");
+	option_line(video_items, VIDEO_SCREEN, console_settings.upside_down ? "UPSIDE DOWN" : "NORMAL");
 	option_line(video_items, VIDEO_BACK, NULL);
+}
+
+static void sound_overlay(void)
+{
+	char value[16];
+
+	page_box("SOUND", SOUND_ITEMS);
+	option_line(sound_items, SOUND_DEMO_SOUND, console_settings.demo_sound ? "ON" : "OFF");
+	snprintf(value, sizeof(value), "%d", console_settings.volume);
+	option_line(sound_items, SOUND_VOLUME, value);
+	option_line(sound_items, SOUND_STEREO, console_settings.stereo ? "STEREO" : "MONO");
+	option_line(sound_items, SOUND_BACK, NULL);
 }
 
 /* MULTIPLAYER's pages (as tmnt-port's) */
@@ -1123,6 +1167,9 @@ void menu_overlay(console_picture *frame)
 			break;
 		case PAGE_VIDEO:
 			video_overlay();
+			break;
+		case PAGE_SOUND:
+			sound_overlay();
 			break;
 		case PAGE_CONTROLS:
 			controls_overlay();

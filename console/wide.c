@@ -642,23 +642,34 @@ static bool edges_masked(void)
    centred, its sides black (Sebas: "cuando cae homero que es cinematica la pondria 4:3"), not the play's sides */
 #define STAGE_2_STEP        4u
 #define STAGE_2_END_PHASE   7u
-/* And stage 7's end (stage_7_end_phase: the helicopter flying to the power plant, a picture on stage 7's scene, its
-   area 1): its map is not a play's, and WIDE drew the play's sides of it, the lift-off's left side of 112 pixels, as
-   blocks of other tiles round the plant and down the sides (Sebas, with the players' issue 34: "hay un error de
-   fondo") */
+/* And stage 7's end from its boss's fall on (phase 5 on: Smithers running off with Maggie, the family after him to the
+   roof, the helicopter coming in and lifting off, then stage_7_end_phase's flight to the power plant on its area 1): a
+   cutscene, 4:3 with black sides (Sebas, with the players' issue 38: "4:3 con negro en el cierre"). WIDE's sides there
+   showed the map past what the cabinet shows: the kabuki stage's deck ending in black, the doors' frame as a black
+   line at the right, the helicopter drawn by its columns as it comes in (the cabinet's own, at its edge); and before
+   (issue 34) two Smithers, the deck going up the side at the lift-off, blocks of other tiles round the plant */
 #define STAGE_7_STEP        0x0Du
-#define STAGE_7_CLOSING     7u
-#define STAGE_7_END_PHASE   8u
+#define STAGE_7_BOSS_DOWN   5u
 /* And stage 8's ending in Mr. Burns' office, from its closing scene on (stage_8_closing_scene, stage_8_objects_wait,
    stage_8_end_phase): a cutscene, 4:3 with black sides as the others (the players' issue 32: "the ending's scene has
    no black borders") */
 #define STAGE_8_CLOSING     12u
+/* And stage 5's and stage 6's ends (their step's phase 8, on the gorge's scene 89: area 1, the players over the
+   waterfall into the lake; area 3, the family on the grass by the lake, falling asleep into Dreamland and waking up
+   from it): cutscenes on maps of their own, which WIDE drew as a play, the board's part at the right and the left
+   side of their maps, the sky's colour at the waterfall and the grass's stripes again and again (the players' issue
+   38: "falling from the waterfall is not" fixed, "the intro and outro scenes for the dream stage are also still
+   broken"). The game's next step shows the waterfall's last picture 4:3, as the cabinet's */
+#define STAGE_5_STEP        9u
+#define STAGE_6_STEP        11u
+#define WATERS_END_PHASE    8u
 
 static bool closing_story(void)
 {
 	return (game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE)
-		|| (game_step == STAGE_7_STEP && step_phase == STAGE_7_END_PHASE)
-		|| (game_step == STAGE_8_STEP && step_phase >= STAGE_8_CLOSING);
+		|| (game_step == STAGE_7_STEP && step_phase >= STAGE_7_BOSS_DOWN)
+		|| (game_step == STAGE_8_STEP && step_phase >= STAGE_8_CLOSING)
+		|| ((game_step == STAGE_5_STEP || game_step == STAGE_6_STEP) && step_phase == WATERS_END_PHASE);
 }
 
 /* A stage's play: its maps drawn, the game's steps going on */
@@ -682,15 +693,6 @@ static bool in_play(void)
 static bool elevator(void)
 {
 	return game_step == ELEVATOR_STEP && stage_scroll_step < ELEVATOR_PLAY;
-}
-
-/* Stage 7's closing scene once the helicopter lifts off (stage_7_scene_lift: layer B's y going up, a row of its cells
-   blanked as it goes): the board's columns of layer B have nothing there, but its map left of them, which WIDE's left
-   side shows (the kabuki stage's deck and the beams under it), would go up the side (the players' issue 34) */
-static bool helicopter_lift(void)
-{
-	return game_step == STAGE_7_STEP && step_phase == STAGE_7_CLOSING && rings[1].known
-		&& (uint16_t)layer_scroll_y(1) != rings[1].y;
 }
 
 static int what_shows(void)
@@ -734,12 +736,6 @@ static void camera_room(int *room_left, int *room_right)
 	(void)room_left;
 }
 
-/* Stage 7's closing scene: Smithers runs off to the right with Maggie, and the helicopter he is then seen in comes in
-   from the right as the camera follows him. The cabinet's screen has him gone 14 frames before it; a right side wider
-   than 48 shows the helicopter, him at its window, while he still runs at the board's edge (20:9's 88: the players'
-   issue 34). Its right side no more than that, the rest at the left */
-#define HELICOPTER_RIGHT    48
-
 /* The play's sides as they come to be: as wide as WIDE's at each side, but no further than a layer's map goes (the
    rest to the other side) */
 static void play_sides(int side, int *left, int *right)
@@ -757,8 +753,6 @@ static void play_sides(int side, int *left, int *right)
 		room_right = LEAST(room_right, MOST(map.width - (x + SIMPSONS_VIDEO_WIDTH), 0));
 	}
 	camera_room(&room_left, &room_right);
-	if (game_step == STAGE_7_STEP && step_phase == STAGE_7_CLOSING)
-		room_right = LEAST(room_right, HELICOPTER_RIGHT);
 	*left = LEAST(side, room_left);
 	*right = LEAST(side, room_right);
 	more = 2 * side - *left - *right;
@@ -870,6 +864,11 @@ static uint16_t early_spawns[EARLY_MOST];    /* (their records: the list skips t
                                                 put_in_sighted_spawns) */
 static uint16_t early_objects[EARLY_MOST];    /* (and their objects) */
 static int early_count;
+
+#define WAITING_MOST        8            /* the spawns waiting for a free object (put_in_waiting) */
+
+static uint16_t waiting_spawns[WAITING_MOST];
+static int waiting_count;
 
 #if CLIMB_SIDES
 #define CLIMB_ROWS          32           /* the ring's rows, from the one above the screen's first */
@@ -1127,12 +1126,22 @@ static void climb_fill(int left, int right)
    boss (stage_2_after_boss: the void's area drawn at the boss's place) the broken deck's columns past its own. Sebas
    saw them in 16:9 ("tendríamos que hacer como hicimos con el segasonic de reconstruir el margen"): while the
    camera is in the boss's room (boss_shown_from), each row of both layers' ring goes on leftwards, from the first map
-   column the cabinet can show there, as the repeat of its cells (the period, of 1 to 16 cells, that most of 16 hold for;
-   the smaller when alike; the ring's 64 columns room for 32 made, 20:9's 24 or 25), so the deck's planks, its rail and posts, the trees and the sky go on to the picture's left end. The cells
-   are the board's tile RAM, as the play's side columns are, made again each frame from the board's columns (which the
-   game draws), so a LAN game's devices draw them alike; the floor map stays the map's */
+   column the cabinet can show there, as the repeat of its cells, so the deck's planks, its rail and posts, the trees
+   and the sky go on to the picture's left end. The cells are the board's tile RAM, as the play's side columns are,
+   made again each frame from the board's columns the game has drawn (so a LAN game's devices draw them alike); the
+   floor map stays the map's.
+   The players' issue 38 ("the repeating tiles (partial Ferris-wheel, partial cloud, partial roller coaster, strange
+   repeating floor pattern) are more obviously flawed than the daylight behind the fun-house", and the fun house seen
+   to "slide away"; Sebas: plain sky, the even rows alone repeated, the fill coming in before): a row repeats only
+   when three quarters of its cells keep its period (1 to 16 cells, from up to 32 of the board's columns, its last
+   period's cells the ones repeated), else it goes on as its most common cell (the sky's, past the Ferris wheel and
+   the roller coaster). The cells are taken only from the columns the game has drawn (the ring's), never past them,
+   and the cabinet's own columns are never written: as the camera comes to the fight, the fill comes in from the
+   picture's left end, reaching the cabinet's edge as the fight's first column does, while the fun house's wall goes
+   out through that edge as on the cabinet (it had come at once, over the board's own columns too) */
 #define BOSS_PERIOD_MOST    16
-#define BOSS_SCORED         16
+#define BOSS_SOURCE         32           /* (the board's columns a row's cells are taken from, at most) */
+#define BOSS_SOURCE_LEAST   20
 #define RING_COLUMNS        64
 
 static int boss_fill_end[2] = { -1, -1 };    /* (each layer's first map pixel past the cells made: console_wide_check) */
@@ -1144,13 +1153,22 @@ static int boss_fill_end[2] = { -1, -1 };    /* (each layer's first map pixel pa
    nothing changes as it moves; -1 out of the fight */
 static int boss_shown_from(void)
 {
-	const int data = rom16(STAGE_RECORDS_BANK, (uint16_t)(stage_record_entry + 2u));
 	const layer_map_area map = rings[camera_main_layer ? 1 : 0].known ? map_of(camera_main_layer ? 1 : 0)
 		: (layer_map_area){ 0 };
-	int right, left;
+	uint16_t entry = stage_record_entry;
+	int data = -1, right, left;
 
-	if (game_step != STAGE_2_STEP || wide_left_now <= 0 || data < 0 || !map.known
-		|| rom8(STAGE_RECORDS_BANK, (uint16_t)data) != (int)CHECK_STOP)
+	if (game_step != STAGE_2_STEP || wide_left_now <= 0 || !map.known)
+		return -1;
+	for (int entries = 0; entries < ENTRIES_AHEAD; entries++)    /* (and coming to it: the entries the camera goes on to
+		before its stop, as camera_room, so the fill comes in as the fight's first column does: boss_side_fill) */
+	{
+		data = rom16(STAGE_RECORDS_BANK, (uint16_t)(entry + 2u));
+		if (data < 0 || rom8(STAGE_RECORDS_BANK, (uint16_t)data) != (int)CHECK_NEXT_ENTRY)
+			break;
+		entry = (uint16_t)(entry + 4u);
+	}
+	if (data < 0 || rom8(STAGE_RECORDS_BANK, (uint16_t)data) != (int)CHECK_STOP)
 		return -1;
 	right = rom16(STAGE_RECORDS_BANK, (uint16_t)(data + 1));
 	if (right < 0 || map.width - (right + SIMPSONS_VIDEO_WIDTH) >= SIMPSONS_VIDEO_WIDTH)
@@ -1160,47 +1178,96 @@ static int boss_shown_from(void)
 	return (left < 0 ? right : LEAST(left, right)) + fixed_first;
 }
 
+static uint16_t ring_cell(const uint8_t *colour, const uint8_t *code, int column)
+{
+	const int here = column & (RING_COLUMNS - 1);
+
+	return (uint16_t)((unsigned)colour[here] << 8 | code[here]);
+}
+
+static void put_ring_cell(uint8_t *colour, uint8_t *code, int column, uint16_t cell)
+{
+	const int here = column & (RING_COLUMNS - 1);
+
+	colour[here] = (uint8_t)(cell >> 8);
+	code[here] = (uint8_t)cell;
+}
+
+/* A row's cells from 'source' on ('count' of them): the period most of them keep (the smaller when alike) and whether
+   three quarters do, else the most common cell */
+static bool boss_row_period(const uint8_t *colour, const uint8_t *code, int source, int count, int *period,
+	uint16_t *common)
+{
+	int same_best = -1, of_best = 1, seen_most = 0;
+
+	*period = 1;
+	for (int length = 1; length <= BOSS_PERIOD_MOST && length < count; length++)
+	{
+		int same = 0;
+
+		for (int cell = source; cell + length < source + count; cell++)
+			same += ring_cell(colour, code, cell) == ring_cell(colour, code, cell + length);
+		if (same * of_best > same_best * (count - length))
+		{
+			*period = length;
+			same_best = same;
+			of_best = count - length;
+		}
+	}
+	if (4 * same_best >= 3 * of_best)
+		return true;
+	for (int cell = source; cell < source + count; cell++)
+	{
+		const uint16_t word = ring_cell(colour, code, cell);
+		int seen = 0;
+
+		for (int other = source; other < source + count; other++)
+			seen += ring_cell(colour, code, other) == word;
+		if (seen > seen_most)
+		{
+			seen_most = seen;
+			*common = word;
+		}
+	}
+	return false;
+}
+
 static void boss_side_fill(int shown_from)
 {
 	for (int layer = 0; layer < 2; layer++)
 	{
 		const uint16_t tiles = record_of(layer).tiles;
 		const int x = layer_scroll_x(layer);
-		const int board = (x + shown_from - (int)(uint16_t)camera_x + TILE - 1) >> 3, first = (x - wide_left_now) >> 3;
+		const int side = x - wide_left_now, edge = x + fixed_first, from = x + shown_from - (int)(uint16_t)camera_x;
+		const int ahead = from - edge;    /* (the fight's first column past the cabinet's edge; less than none in the fight) */
+		const int first = side >> 3, source = (MOST(from, edge) + TILE - 1) >> 3;
+		const int end = (edge - (ahead < 0 ? -ahead : ahead)) >> 3;    /* (the columns wholly left of the cabinet's edge and of
+			the fight's first column; coming to the fight, as much less as the column is still ahead of the edge) */
+		const int count = LEAST(BOSS_SOURCE, RING_COLUMNS - (source - first));
 
 		boss_fill_end[layer] = -1;
-		if (!rings[layer].known || first >= board || board - first > RING_COLUMNS - BOSS_SCORED - BOSS_PERIOD_MOST)
-			continue;
-		boss_fill_end[layer] = board * TILE;
+		if (!rings[layer].known || end <= first || count < BOSS_SOURCE_LEAST || source * TILE < rings[layer].first
+			|| (source + count) * TILE - 1 > rings[layer].last)
+			continue;    /* (and nothing made of columns the game has not drawn yet) */
+		boss_fill_end[layer] = end * TILE;
 		for (int row = 0; row < 32; row++)
 		{
 			uint8_t *colour = &simpsons_board.tile_ram[tiles + 0x40u * (unsigned)row - 0x2000u];
 			uint8_t *code = &simpsons_board.tile_ram[tiles + 0x40u * (unsigned)row];
-			int best = 1, best_score = -1;
+			int period;
+			uint16_t common = 0u;
 
-			for (int period = 1; period <= BOSS_PERIOD_MOST; period++)
+			if (boss_row_period(colour, code, source, count, &period, &common))
 			{
-				int score = 0;
+				const int base = source + count - period;    /* (its last period's cells) */
 
-				for (int cell = board; cell < board + BOSS_SCORED; cell++)
-				{
-					const int here = cell & (RING_COLUMNS - 1), there = (cell + period) & (RING_COLUMNS - 1);
-
-					score += colour[here] == colour[there] && code[here] == code[there];
-				}
-				if (score > best_score)
-				{
-					best = period;
-					best_score = score;
-				}
+				for (int column = first; column < end; column++)
+					put_ring_cell(colour, code, column,
+						ring_cell(colour, code, base + ((column - base) % period + period) % period));
 			}
-			for (int column = board - 1; column >= first; column--)
-			{
-				const int here = column & (RING_COLUMNS - 1), there = (column + best) & (RING_COLUMNS - 1);
-
-				colour[here] = colour[there];
-				code[here] = code[there];
-			}
+			else
+				for (int column = first; column < end; column++)
+					put_ring_cell(colour, code, column, common);
 		}
 	}
 }
@@ -1216,6 +1283,7 @@ void console_wide_frame(void)
 	{
 		forget_rings();    /* (another step: its maps to come, */
 		early_count = 0;    /* its spawn list) */
+		waiting_count = 0;
 	}
 	settle_moved_spawns();    /* (the spawns moved out of sight that are not enemies: back at their places) */
 	if (floor_camera_seen >= 0 && (int)camera_main_layer != floor_camera_seen)
@@ -1267,11 +1335,7 @@ void console_wide_frame(void)
 			}
 			follow_ring(layer);
 			draw_side_columns(layer, &map, wide_left_now, wide_right_now);
-			if (layer == 1 && helicopter_lift())
-				simpsons_video_set_layer_window(1 + layer, fixed_first, fixed_last);    /* (stage 7's lift-off: layer B
-					in the board's columns alone) */
-			else
-				simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
+			simpsons_video_set_layer_window(1 + layer, -x, map.width - 1 - x);    /* (nothing of it past its ends) */
 		}
 		const int boss_from = boss_shown_from();
 
@@ -1688,9 +1752,29 @@ static void floor_priority_again(uint16_t object)
 		mem_write8((uint16_t)(FLOOR_SCRATCH + index), scratch[index]);
 }
 
+/* An obstacle of list 1 (its type 00: obstacle_update) back at its place, still waiting to put itself up (state 0, set
+   up): put up now if WIDE shows it there (obstacle_start), as the game does at its next step. Stage 2's mailbox by
+   Otto's stall stands in WIDE's right side as the stage begins, and the game runs list 1 once then
+   (start_stage_objects, the mailbox moved past the side as a goon's spawn) and not again till the players have landed
+   from their balloon: unseen through the walk-in, then up at once (the players' issues 32 and 38) */
+#define LIST_1_FIRST        22           /* (list 1: the objects 22 to 31) */
+#define LIST_1_END          32
+#define OBSTACLE_TYPE       0x00u
+
+static void obstacle_up_in_sight(uint16_t object)
+{
+	uint16_t floor_place = 0u;
+	uint32_t left_caller = 0u;
+
+	if (object < OBJECT_ADDRESS(LIST_1_FIRST) || object >= OBJECT_ADDRESS(LIST_1_END)
+		|| (uint8_t)OBJECT(object)->type != OBSTACLE_TYPE || OBJECT(object)->state != 0u || OBJECT(object)->action == 0u)
+		return;
+	obstacle_start(object, &floor_place, &left_caller);
+}
+
 /* At each frame's end: what a moved spawn put in at its place this frame, moved with it; a moved spawn that is an
    enemy kept where it was moved, one that is not back at its place after MOVED_FRAMES (or gone: forgotten), with its
-   sprites' priority of its place's floor (floor_priority_again) */
+   sprites' priority of its place's floor (floor_priority_again), and an obstacle put up if WIDE shows it there */
 static void settle_moved_spawns(void)
 {
 	uint32_t in_use = 0;
@@ -1732,6 +1816,7 @@ static void settle_moved_spawns(void)
 		{
 			OBJECT(object)->x = (uint16_t)(x - moved_spawns[index].moved);
 			floor_priority_again(object);
+			obstacle_up_in_sight(object);
 		}
 	}
 	moved_count = kept;
@@ -1804,10 +1889,22 @@ int console_wide_spawn_check(char *text, size_t size)
 #define RIDE_HUB_KIND       0x0Fu
 #define SPAWN_LIST          0x0Cu        /* a spawn's flags: its object's list (take_free_object_for_spawn), */
 #define SPAWN_LIST_1        0x04u        /* list 1 */
+#define SPAWN_LIST_EVENT    0x0Cu        /* list 3, the stage's event */
 
 static bool due_as_on_board(uint16_t spawn)
 {
 	return SPAWN(spawn)->kind == RIDE_HUB_KIND && (SPAWN(spawn)->flags & SPAWN_LIST) == SPAWN_LIST_1;
+}
+
+/* The stage's event (list 3, object 32: the scene's own actor), due as on the board too: brought in by WIDE's right
+   side it stood that far past its place, and acted from the camera there: the stages' camera stops came that much
+   early (stage 7's at 0370 for 03A0, and never at 0680), and stage 3's closing scene put its two goons and its ghosts
+   in that far into the picture (01C0 for 0190: the players' issue 38, "human characters and ghost characters appear out
+   of almost the center"). It waits apart (put_in_waiting), the rest of the list going on: held behind it, the props
+   and figures after it came in late, in WIDE's sight */
+static bool event_spawn(uint16_t spawn)
+{
+	return (SPAWN(spawn)->flags & SPAWN_LIST) == SPAWN_LIST_EVENT;
 }
 
 /* A spawn put in as the game's spawn_stage_objects puts it in (an object of its list free for it, or none), at its
@@ -1888,7 +1985,7 @@ static void put_in_sighted_spawns(int side_left, int side_right, int picture_lef
 			|| (uint16_t)(camera_x + 0x150u + (unsigned)side_right) < SPAWN(spawn)->x)
 			break;
 		if (difficulty < SPAWN(spawn)->level || (int8_t)SPAWN(spawn)->flags < 0 || comes_in_type(SPAWN(spawn)->kind)
-			|| due_as_on_board(spawn) || screen_x - SIGHT_HALF >= OBJECT_RIGHT + side_right)
+			|| due_as_on_board(spawn) || event_spawn(spawn) || screen_x - SIGHT_HALF >= OBJECT_RIGHT + side_right)
 			continue;    /* (not one that stands in the wider screen's sight) */
 		if ((spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right)) != 0u)
 		{
@@ -1921,9 +2018,38 @@ static bool put_in_early(uint16_t spawn, bool wide)
 	return false;
 }
 
+/* The spawns due by WIDE's right side alone whose list had no free object: the game passes over such a spawn, and
+   stage 1's police car by the fire station (list 1's type 05, kind 0F) came while WIDE's sides still held the list's
+   props and figures, and was never seen (the players' issues 32 and 38). Each waits here, tried again at each frame,
+   till the board's own edge comes to it: then put in, or passed over as on the board. The rest of the list goes on
+   (a first try held the whole list there: what came after it was put in late, in WIDE's sight) */
+static void put_in_waiting(int side_left, int side_right, int picture_left, int picture_right)
+{
+	int kept = 0;
+
+	for (int index = 0; index < waiting_count; index++)
+	{
+		const uint16_t spawn = waiting_spawns[index];
+		const bool short_of_board = (uint16_t)(camera_x + 0x150u) < SPAWN(spawn)->x;
+		uint16_t spawned;
+
+		if (short_of_board && event_spawn(spawn))
+		{
+			waiting_spawns[kept++] = spawn;    /* (the stage's event: due at the board's edge alone) */
+			continue;
+		}
+		if ((spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right)) != 0u)
+			note_spawn(spawned, picture_left, picture_right);
+		else if (short_of_board)
+			waiting_spawns[kept++] = spawn;    /* (still short of the board's edge) */
+	}
+	waiting_count = kept;
+}
+
 /* The game's spawn_stage_objects (objects/spawning.c), the spawns due as far past the wider screen's right side as
    past the board's, put in at their place; those that come in from the left as far past its left side; in the play's
-   first frame, the board's spawns and those that stand in the wider screen's sight (put_in_sighted_spawns) */
+   first frame, the board's spawns and those that stand in the wider screen's sight (put_in_sighted_spawns); those
+   whose list was full, again (put_in_waiting) */
 void spawn_stage_objects(void)
 {
 	uint32_t carry = 0;
@@ -1964,6 +2090,7 @@ void spawn_stage_objects(void)
 			return;
 		window_bank = 0x1Bu;
 		set_lines(window_bank);
+		put_in_waiting(side_left, side_right, picture_left, picture_right);
 	}
 	for (;;)
 	{
@@ -2008,7 +2135,19 @@ void spawn_stage_objects(void)
 			spawn_next = spawn + 8u;    /* (put in ahead of the list already: the play's first frame) */
 			continue;
 		}
+		if (in_cemetery == 0u && (side_left || side_right) && event_spawn(spawn)
+			&& (uint16_t)(camera_x + 0x150u) < SPAWN(spawn)->x)
+		{
+			if (waiting_count >= WAITING_MOST)
+				break;    /* (no room to wait apart: the list held behind it) */
+			waiting_spawns[waiting_count++] = spawn;    /* (the stage's event: at the board's edge, put_in_waiting) */
+			spawn_next = spawn + 8u;
+			continue;
+		}
 		spawned = put_in_spawn(spawn, side_left || side_right, side_left, side_right, picture_left, picture_right);
+		if (!spawned && in_cemetery == 0u && (side_left || side_right) && waiting_count < WAITING_MOST
+			&& (uint16_t)(camera_x + 0x150u) < SPAWN(spawn)->x)
+			waiting_spawns[waiting_count++] = spawn;    /* (its list full, due by WIDE's right side alone: it waits) */
 		if (spawned && (side_left || side_right))
 			note_spawn(spawned, picture_left, picture_right);
 		spawn_next = spawn + 8u;
@@ -3455,6 +3594,7 @@ void wide_power_on(void)
 	moved_count = 0;
 	objects_in_use = 0;
 	early_count = 0;
+	waiting_count = 0;
 	climb_now = climb_drawn = false;
 	held_left = -1;
 #if CLIMB_SIDES
@@ -3483,6 +3623,8 @@ void wide_state(simpsons_state *state)
 	simpsons_state_bytes(state, early_spawns, sizeof(early_spawns));
 	simpsons_state_bytes(state, early_objects, sizeof(early_objects));
 	simpsons_state_bytes(state, &early_count, sizeof(early_count));
+	simpsons_state_bytes(state, waiting_spawns, sizeof(waiting_spawns));
+	simpsons_state_bytes(state, &waiting_count, sizeof(waiting_count));
 	simpsons_state_bytes(state, &fixed_first, sizeof(fixed_first));
 	simpsons_state_bytes(state, &fixed_last, sizeof(fixed_last));
 	simpsons_state_bytes(state, &last_step, sizeof(last_step));
