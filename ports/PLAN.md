@@ -796,3 +796,38 @@ day: What was done, 15-11-2026).
   INTRO with the Konami code kept on it (console/PLAN.md); version 1.0.4 (CMakeLists.txt), docs/releases/v1.0.4.md,
   testing.md's list emptied; main fast-forwarded to testing, the tag v1.0.4 once the CI is green on that commit. The
   25 scenarios identical. Not tried on a device.
+- **24-11-2026, the Switch's pace: the way on** (the players' issue 38, zerofalcon: the Switch "kind of stutters when the
+  screen scrolls"; Sebas: "la salida es esa para mi. terminar el decomp, sdl3, y ahi optimizar", and "sacar la emulacion
+  de sonido y pasarla a hard nativo, la logica a video"): measured on the PC (build/perf_work/bench.py, stage 1's script,
+  6000 frames, 16:9): 1.29 ms a frame, the logic (the program, the sound board, the console) 0.83 and the drawing 0.46
+  (4:3: 0.79 and 0.40); with the Switch's factor of 6 to 8 some 8 to 10 ms of its 16.9, the window's own part (the
+  texture, the scaling, the present) not measured. The window leaves a frame undrawn after one that ended late
+  (late_skip, issue 21: at most 3 in a row), and on the Switch vsync_on stays false while its EGL present may wait for
+  the screen; a run on the PC with the renderer's VSYNC on and the port's off left none undrawn. The order: the decomp
+  finished, SDL 3 (the skill's rule; the Switch's from devkitPro's unpublished switch-sdl-3.4 branch), then the
+  optimization: the sound's chips (YM2151, K053260) to native playback (the songs are MIDI already, runtime/src/music.c),
+  the drawing to the GPU. Asked of the reporter: the FPS while scrolling, docked or handheld, and simpsons.log's
+  "Renderer:" line (the window falls back to SDL's software renderer where the accelerated one with render targets
+  does not start).
+- **24-11-2026, the Switch's pace in its log, and Eden** (Sebas: "necesitaríamos un emu para que puedas hacer los
+  test autónomos vos", "hacele una pasada"): The Simpsons' FPS counter (OPTIONS > VIDEO > FPS, the settings' fps=1)
+  writes --slow's report into the log as well, every 600 frames, with no delay (slow_frame: "Pace (slow 0 ms), to
+  frame N: the frames a second, how many drawn and shown, the sound out"), so a device's own pace reaches the log
+  without arguments. Eden 0.2.1 (D:\Descargados, its keys and SD card in AppData\Roaming\eden, segasonic-port's and
+  outrunners-port's) runs the Switch build unattended: `eden-cli.exe <the .nro>` under a timeout, the log read from
+  its sdmc/switch/simpsons-arcade/. Checked: devkitPro's build of 1.0.4 + testing (0 warnings) on Eden, the
+  attract for 6600 frames, 59.19 frames a second from frame 1200 on, every frame drawn and shown, the sound out
+  0-1 times in 600 (a first run's frames 1200-1800 at 48.83: Eden's shaders made, gone on the second run); both
+  window games built with MSVC. Eden on this computer is faster than a Switch (the players' 37-50 a second before
+  1.0.2): good for a start, the menus, the log and threads, not for the pace until a run on Sebas's Switch gives
+  the same frames' numbers to compare.
+- **27-11-2026, CONTROLS on Android** (the players' issue 41, "I would like to remap gamepad buttons (a for jump and x
+  for attack)"; Sebas: "fijate de revisar el 39,40,41"): SIMPSONS_DEVICE_CONTROLS on Android's console program
+  (android.cmake, as switch.cmake's): OPTIONS has CONTROLS there too, its page with no keys, each control's buttons
+  side by side, the buttons' pictures the computers' (an Xbox controller's letters, input_prompts.bmp already in the
+  APK's assets), a button of another controller leaving the control as it was. While it waits, a key leaves the control
+  as it was under SIMPSONS_DEVICE_CONTROLS (main.c, read_events): Android's back is a key, and a player of the touch
+  screen alone has nothing else to leave it with (the Switch's USB keyboard alike). The Arcade Game is an app of its
+  own on Android, with its own controls.ini: README-android.txt says CONTROLS is The Simpsons Mr. Plow Edition's (and
+  "pauses The Simpsons Arcade Game Game" put right). Checked: build/android's simpsons_apks, both ABIs, no warnings.
+  Not checked on a device: the page with a controller, and Back while it waits.

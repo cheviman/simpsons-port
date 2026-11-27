@@ -37,8 +37,8 @@
  *    On the devices (as tmnt-port's): no EXIT where the system leaves the game (SIMPSONS_SYSTEM_EXIT: the Switch's
  *    HOME), and no CONTROLS where the device's controls are fixed (SIMPSONS_HANDHELD), whose VIDEO has PIXELS,
  *    INTEGER SCALE and FPS alone: its screen is the window, WIDE as it is. A device whose players bind their game
- *    controllers' buttons has CONTROLS (SIMPSONS_DEVICE_CONTROLS: the Switch, the players' issue 21), its page the
- *    computers' with no keys.
+ *    controllers' buttons has CONTROLS (SIMPSONS_DEVICE_CONTROLS: the Switch, the players' issue 21, and Android,
+ *    issue 41), its page the computers' with no keys.
  */
 #include "console_internal.h"
 

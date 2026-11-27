@@ -663,10 +663,19 @@ static bool edges_masked(void)
 #define STAGE_5_STEP        9u
 #define STAGE_6_STEP        11u
 #define WATERS_END_PHASE    8u
+/* And stage 3's first part's end, from its play's over on (step 6, phases 6 to 8: stage_3_forest_over, the players
+   walking to the graveyard's secret entrance, then stage_3_forest_end_phase's scene: the goons running into it, the
+   ghosts, the stone over it again): a cutscene, 4:3 with black sides (the players' issue 40, "Ghosts and goons in this
+   scene can still be seen appearing within the viewable area", the stone seen "shifted to the right": WIDE's right
+   side showed the entrance open past the cabinet's edge; Sebas: "4:3 closing"). Phase 9 on is the cemetery's play */
+#define STAGE_3_STEP        6u
+#define FOREST_OVER         6u
+#define FOREST_END_PHASE    8u
 
 static bool closing_story(void)
 {
 	return (game_step == STAGE_2_STEP && step_phase == STAGE_2_END_PHASE)
+		|| (game_step == STAGE_3_STEP && step_phase >= FOREST_OVER && step_phase <= FOREST_END_PHASE)
 		|| (game_step == STAGE_7_STEP && step_phase >= STAGE_7_BOSS_DOWN)
 		|| (game_step == STAGE_8_STEP && step_phase >= STAGE_8_CLOSING)
 		|| ((game_step == STAGE_5_STEP || game_step == STAGE_6_STEP) && step_phase == WATERS_END_PHASE);
@@ -869,6 +878,10 @@ static int early_count;
 
 static uint16_t waiting_spawns[WAITING_MOST];
 static int waiting_count;
+
+/* Each object's type plus 0x100 once it has been in the board's picture (0: not yet, or its slot free): one of them
+   past the board's left edge since is one the cabinet no longer shows (board_room) */
+static uint16_t board_seen[OBJECTS];
 
 #if CLIMB_SIDES
 #define CLIMB_ROWS          32           /* the ring's rows, from the one above the screen's first */
@@ -2023,6 +2036,57 @@ static bool put_in_early(uint16_t spawn, bool wide)
    props and figures, and was never seen (the players' issues 32 and 38). Each waits here, tried again at each frame,
    till the board's own edge comes to it: then put in, or passed over as on the board. The rest of the list goes on
    (a first try held the whole list there: what came after it was put in late, in WIDE's sight) */
+static bool held_in_sight(uint16_t object);
+
+/* Which objects have been in the board's picture (board_seen), from the frame before: the game's spawns come before
+   its objects' turns */
+static void note_board_seen(void)
+{
+	for (int number = 0; number < OBJECTS; number++)
+	{
+		const uint16_t object = (uint16_t)OBJECT_ADDRESS(number);
+		const int x = (int16_t)OBJECT(object)->x;
+		const uint16_t seen = (uint16_t)(OBJECT(object)->type | 0x100u);
+
+		if (OBJECT(object)->flags == 0u || (board_seen[number] && board_seen[number] != seen))
+			board_seen[number] = 0u;    /* (free, or another object in the slot) */
+		if (OBJECT(object)->flags != 0u && x >= OBJECT_LEFT && x <= OBJECT_RIGHT)
+			board_seen[number] = seen;
+	}
+}
+
+/* A spawn at the board's own edge whose list is full has the room the board had there: WIDE's left side keeps the
+   objects that leave the board's picture longer (the decomp's PAST_LEFT moved by screen_more_left), and the board
+   had taken them off by then. Of its list, the one furthest past the board's left edge that has been in its picture
+   (not one coming in from the left), and not an obstacle its goon holds, is taken off. Stage 1's police car by the
+   fire station waited for room till the board's edge came to it, while WIDE's left side still held the video
+   arcade's door (list 1 type 12, kind 0F: gone from x 0030 on the board, from 0000 in 16:9): with one player the list
+   was full there and the car passed over (the players' issue 40; four players' objects had left room). Whether there
+   was such an object */
+static bool board_room(uint16_t spawn)
+{
+	const unsigned list = (SPAWN(spawn)->flags & SPAWN_LIST) >> 2;
+	uint16_t object = object_lists[list], chosen = 0;
+
+	for (unsigned left = object_list_sizes[list]; left > 0u; left--, object = (uint16_t)(object + 0x60u))
+	{
+		const unsigned number = (unsigned)(uint16_t)(object - OBJECT_ADDRESS(0)) / 0x60u;
+		const int x = (int16_t)OBJECT(object)->x;
+
+		if (number < OBJECTS && OBJECT(object)->flags != 0u && board_seen[number] != 0u && x < OBJECT_LEFT
+			&& !held_in_sight(object) && (!chosen || x < (int16_t)OBJECT(chosen)->x))
+			chosen = object;
+	}
+	if (!chosen)
+		return false;
+	if (debug_on())
+		fprintf(stderr, "frame %llu: room for spawn %04X kind %02X: object %04X type %02X x %04X taken off\n",
+			(unsigned long long)simpsons_board.frame, (unsigned)spawn, (unsigned)SPAWN(spawn)->kind, (unsigned)chosen,
+			(unsigned)OBJECT(chosen)->type, (unsigned)OBJECT(chosen)->x);
+	OBJECT(chosen)->flags = 0u;
+	return true;
+}
+
 static void put_in_waiting(int side_left, int side_right, int picture_left, int picture_right)
 {
 	int kept = 0;
@@ -2038,7 +2102,11 @@ static void put_in_waiting(int side_left, int side_right, int picture_left, int 
 			waiting_spawns[kept++] = spawn;    /* (the stage's event: due at the board's edge alone) */
 			continue;
 		}
-		if ((spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right)) != 0u)
+		spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right);
+		if (!spawned && !short_of_board && board_room(spawn))
+			spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right);    /* (the
+				board's edge: the room the board had) */
+		if (spawned)
 			note_spawn(spawned, picture_left, picture_right);
 		else if (short_of_board)
 			waiting_spawns[kept++] = spawn;    /* (still short of the board's edge) */
@@ -2058,6 +2126,7 @@ void spawn_stage_objects(void)
 	uint16_t enemies_speed = 0, camera_position = 0, spawn_edge = 0, scroll_position = 0, spawn_place = 0, compared_scroll = 0;
 	int side_left, side_right, picture_left, picture_right;
 
+	note_board_seen();
 	if (in_cemetery == 0u && play_begins(&picture_left, &picture_right))
 	{
 		spawn_as_play_begins(picture_left, picture_right);    /* (the play's first frame: the board's spawns, */
@@ -2145,6 +2214,10 @@ void spawn_stage_objects(void)
 			continue;
 		}
 		spawned = put_in_spawn(spawn, side_left || side_right, side_left, side_right, picture_left, picture_right);
+		if (!spawned && in_cemetery == 0u && (side_left || side_right)
+			&& (uint16_t)(camera_x + 0x150u) >= SPAWN(spawn)->x && board_room(spawn))
+			spawned = put_in_spawn(spawn, true, side_left, side_right, picture_left, picture_right);    /* (the board's
+				edge: the room the board had) */
 		if (!spawned && in_cemetery == 0u && (side_left || side_right) && waiting_count < WAITING_MOST
 			&& (uint16_t)(camera_x + 0x150u) < SPAWN(spawn)->x)
 			waiting_spawns[waiting_count++] = spawn;    /* (its list full, due by WIDE's right side alone: it waits) */
@@ -3595,6 +3668,7 @@ void wide_power_on(void)
 	objects_in_use = 0;
 	early_count = 0;
 	waiting_count = 0;
+	memset(board_seen, 0, sizeof(board_seen));
 	climb_now = climb_drawn = false;
 	held_left = -1;
 #if CLIMB_SIDES
@@ -3625,6 +3699,7 @@ void wide_state(simpsons_state *state)
 	simpsons_state_bytes(state, &early_count, sizeof(early_count));
 	simpsons_state_bytes(state, waiting_spawns, sizeof(waiting_spawns));
 	simpsons_state_bytes(state, &waiting_count, sizeof(waiting_count));
+	simpsons_state_bytes(state, board_seen, sizeof(board_seen));
 	simpsons_state_bytes(state, &fixed_first, sizeof(fixed_first));
 	simpsons_state_bytes(state, &fixed_last, sizeof(fixed_last));
 	simpsons_state_bytes(state, &last_step, sizeof(last_step));

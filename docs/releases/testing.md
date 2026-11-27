@@ -44,3 +44,20 @@ players to confirm.
 **OPTIONS, shorter**: SCREEN is now in OPTIONS > VIDEO, and a new OPTIONS > SOUND page holds DEMO SOUND, VOLUME and
 SOUND. The lines that open a page (CONTROLS, VIDEO, SOUND) show a > at their right. SOUND starts in STEREO every time
 the game starts (MONO can still be chosen, till the game closes).
+
+**WIDE, stage 1's police car, again** (issue 40): with one player it still never came. It waited for room, and when
+the cabinet's moment came WIDE's left side still held the video arcade's door, which the cabinet has taken away by
+then. Now the door makes room for it at that moment, and the car comes in at the screen's right edge, parked by the
+fire station.
+
+**WIDE, the cemetery's end** (issue 40): from the moment the stage's first part is over, the walk to the secret
+entrance and the scene there (the goons running in, the ghosts, the stone over the entrance) are a picture 4:3 with
+black sides, as the other closing scenes. WIDE showed the entrance open past the cabinet's edge, beside the stone, and
+the goons and ghosts appearing in sight.
+
+**Android: OPTIONS > CONTROLS** (issue 41): The Simpsons Mr. Plow Edition on Android has CONTROLS now, as on the Switch:
+choose the player, then a control, and press the button for it on that player's own controller. Back leaves the
+control as it was; DEFAULTS puts them all back.
+
+Not tried on a device either: the police car and the cemetery were checked on the PC (the console's headless), and
+Android's CONTROLS built.

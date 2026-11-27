@@ -49,7 +49,9 @@ Playing
 The touch screen has a stick where your left thumb lands, ATTACK and JUMP at the right, and START (COIN on
 The Simpsons Arcade Game, where ATTACK then brings Marge in); a game controller hides them, and each
 controller is a player (player 1 is Marge, 2 Homer, 3 Bart, 4 Lisa). Back, or START in the game, pauses
-The Simpsons Arcade Game Game, and so does leaving the app. On a TV with Android TV or Google TV the games are
+The Simpsons Mr. Plow Edition, and so does leaving the app. Its OPTIONS > CONTROLS changes each player's
+buttons: choose the player, then a control, and press the button for it on that player's own controller
+(Back leaves it as it was; DEFAULTS puts them all back). On a TV with Android TV or Google TV the games are
 in the TV's apps; its remote is a player after the game controllers (in The Simpsons its pad moves, OK
 attacks, back jumps, home pauses). Each game writes its log (simpsons.log, simpsons-arcade.log) in its folder
 on the device's storage, Android/data/io.github.cheviman.simpsons/files (The Simpsons Arcade Game's:

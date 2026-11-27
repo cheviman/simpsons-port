@@ -1015,3 +1015,41 @@ keeps from 12 to 19. Every change the console makes is checked with the console'
   - Checked: the headless, --actions through OPTIONS, VIDEO and SOUND (pictures of the three, SOUND STEREO at the
     start); the console headless, The Simpsons Mr. Plow Edition and The Simpsons Arcade Game built with no warnings.
     Not checked on a device.
+- **27-11-2026, the players' issues 39, 40 and 41** (Sebas: "fijate de revisar el 39,40,41"; on the choices: the
+  cemetery's closing "4:3 closing", Krusty's fight "Keep the fill, fix it", and "Close what is done" for now). Issue
+  40 is the reporter's on the Switch with WIDE (TEST36, 6a3eb36: issue 38's fixes in); its videos read frame by frame.
+  - Issue 39 (bonus 1's balloon "harder since 1.0.2"): the board's own pace, not a fault. Each newly pressed ATTACK or
+    JUMP grows the balloon and holds it 16 frames (bonus_1_blow), and an absent player's balloon presses by itself,
+    the first one every 6 frames (bonus_1_set_absent_rates: press_rate 5). In the arcade's headless (1:1): a press
+    every 5 frames wins, every 6 by a hair, every 7 or 8 loses; ATTACK and JUMP in turn, one every 4 frames, wins
+    easily. Before 1.0.2 the Switch ran at 37 to 50 frames a second, the computer's balloons slower in a real second;
+    1.0.2 (issue 21) brought the board's pace.
+  - Issue 40, stage 1's police car, again (one player, Lisa): its spawn waited apart (put_in_waiting) till the board's
+    edge came to it with list 1 still full: WIDE's left side held the video arcade's door (list 1 type 12, kind 0F,
+    x 0018 in 16:9), which doors.c takes off by X_BETWEEN(PAST_LEFT(0x40), PAST_LEFT(0x10)), moved by
+    screen_more_left: from x 0030 on the board, from 0000 in 16:9. Four players' objects had left the list room.
+    board_room: a spawn due at the board's edge whose list is full takes off the object of its list furthest past the
+    board's left edge that has been in the board's picture (board_seen: its type once there, the frame before, in the
+    save state; not one coming in from the left, not an obstacle its goon holds), and is put in, at the board's time.
+    In put_in_waiting and in the list's own loop. The door's frame is in the tiles: its sprite going out at the
+    picture's left end does not show.
+  - Issue 40, stage 3's first part's end (the goons and ghosts "appearing within the viewable area", the stone over the
+    secret entrance seen "shifted to the right": WIDE's right side showed the entrance open past the cabinet's edge):
+    closing_story from step 6's phase 6 to 8 (stage_3_forest_over, the walk to the entrance, stage_3_forest_end_phase's
+    scene), 4:3 with black sides. Phase 5 is still play (the graveyard's fight after the flash): WIDE.
+  - Left for another session: Krusty's fight (the wipe as the fun house goes out, the Ferris wheel cut, the trees'
+    rows changing with the camera, the broken deck's left side), the elevator room's barrels breaking by themselves at
+    its end, stage 5's cave doors gone early as the camera moves (stage 5's camera_x stays 0 in the four players'
+    script). Notes in build/issue40_work/notes.md. The way to get there: the Konami code page (the console headless
+    starts in the attract: a first action wakes the menu), HEALTH INFINITE, and a script that walks between attacks (one
+    that attacks all the time never moves the camera: an attack stops the walk and its push).
+  - Issue 41 (Android: remap the gamepad): SIMPSONS_DEVICE_CONTROLS on Android's console program (android.cmake), as
+    the Switch's: OPTIONS > CONTROLS, each player's own controller's buttons. While it waits, a key (Android's back)
+    leaves the control as it was under SIMPSONS_DEVICE_CONTROLS (main.c): a touch screen's player has nothing else.
+    README-android.txt says so. Both APKs built (arm64-v8a and armeabi-v7a). Not checked on a device.
+  - Checked (the console headless of HEAD's wide.c against this one): WIDE off, every frame's state and picture hashes
+    of the 8 stage scripts (40000 frames) identical; 16:9 and 20:9, the WIDE picture's hashes identical and
+    SIMPSONS_WIDE_AUDIT's reports the same in all 8 (their four players never need the room, nor reach the cemetery's
+    end). Stage 1 with Lisa alone: the car taken in once by board_room in 16:9 (4345) and 16:10, none needed in 20:9;
+    parked by the fire station in the three. Stage 3's end by a poke of step_phase: phase 4 WIDE, phase 7 a picture
+    4:3 with black sides. The Switch's games built by devkitPro (wide.c, menu.c, both main.c) with no warnings.

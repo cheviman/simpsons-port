@@ -38,7 +38,9 @@
 #   cmake --build build/android --target simpsons_apks --parallel 16
 
 set(SIMPSONS_ANDROID_DEFINITIONS SIMPSONS_HANDHELD SIMPSONS_SYSTEM_EXIT SIMPSONS_TOUCH)
-target_compile_definitions(simpsons_console_program PUBLIC ${SIMPSONS_ANDROID_DEFINITIONS})
+# (SIMPSONS_DEVICE_CONTROLS: OPTIONS > CONTROLS, each player's own game controller's buttons, as the Switch's: the
+#  players' issue 41)
+target_compile_definitions(simpsons_console_program PUBLIC ${SIMPSONS_ANDROID_DEFINITIONS} SIMPSONS_DEVICE_CONTROLS)
 
 set(SIMPSONS_ANDROID_VERSION ${PROJECT_VERSION})
 math(EXPR SIMPSONS_ANDROID_VERSION_CODE    # (major * 10000 + minor * 100 + patch)

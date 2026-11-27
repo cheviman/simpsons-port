@@ -81,8 +81,9 @@
  *    --script plays a control script (runtime/include/simpsons/script.h) instead of the keyboard, to its end;
  *    --fast runs without waiting for the frames' time. --slow MS makes each frame drawn take MS milliseconds more,
  *    as a slow device's, and says on the standard error every 600 frames how the pace held: the frames a second (the
- *    board's 59.19), how many were drawn and shown, and how often the sound ran out; --no-vsync runs it without
- *    VSYNC, as the devices' builds do (their screens keep the system's refresh), so that the two together are a slow
+ *    board's 59.19), how many were drawn and shown, and how often the sound ran out (The Simpsons' FPS counter, the
+ *    settings' fps=1, writes the same into the log without slowing anything: a device's own pace); --no-vsync runs
+ *    it without VSYNC, as the devices' builds do (their screens keep the system's refresh), so that the two together are a slow
  *    device's frames on a computer. In a check's build (SIMPSONS_PAD_CHECK, CMake's option), --pads N plugs in N
  *    game controllers of SDL's own making and --actions' "FRAME pad BUTTON PLAYER" presses their buttons: CONTROLS'
  *    bindings with no controller there. --hashes, --video-hashes and --sound-hashes write for each
@@ -1409,9 +1410,14 @@ static void read_events(void)
 #ifdef SIMPSONS_CONSOLE
 				if (console_controls_waiting() >= 0)
 				{
+#ifdef SIMPSONS_DEVICE_CONTROLS
+					/* CONTROLS waits for a button: a key leaves the control as it was (a device's page has no keys;
+					   Android's back is one, and a touch screen's player has nothing else to leave it with) */
+#else
 					/* CONTROLS waits for a key: this one (Escape leaves the control as it was) */
 					if (event.key.keysym.sym != SDLK_ESCAPE)
 						controls_bind_key(console_controls_player(), console_controls_waiting(), event.key.keysym.scancode);
+#endif
 					console_controls_bound();
 					break;
 				}
@@ -2455,7 +2461,8 @@ static bool dumped(uint64_t number)
 	return false;
 }
 
-/* --slow: the frame drawn takes its milliseconds more, and every SLOW_REPORT_FRAMES frames how the pace held */
+/* --slow: the frame drawn takes its milliseconds more; with it or with the FPS counter on, every SLOW_REPORT_FRAMES
+   frames how the pace held (a device's in its log: the Switch's, the handhelds') */
 #define SLOW_REPORT_FRAMES  600
 
 static void slow_frame(bool drawn, uint64_t number)
@@ -2464,7 +2471,8 @@ static void slow_frame(bool drawn, uint64_t number)
 
 	if (drawn)
 	{
-		SDL_Delay((Uint32)slow_ms);
+		if (slow_ms > 0)
+			SDL_Delay((Uint32)slow_ms);
 		slow.drawn++;
 	}
 	if (slow.since == 0)
@@ -2472,8 +2480,8 @@ static void slow_frame(bool drawn, uint64_t number)
 	if (++slow.frames < SLOW_REPORT_FRAMES)
 		return;
 	now = SDL_GetPerformanceCounter();
-	fprintf(stderr, "Slow %d ms, to frame %" PRIu64 ": %.2f frames a second (the board's %.2f), %u of %u drawn, %u shown,"
-		" the sound out %u times\n", slow_ms, number,
+	fprintf(stderr, "Pace (slow %d ms), to frame %" PRIu64 ": %.2f frames a second (the board's %.2f), %u of %u drawn,"
+		" %u shown, the sound out %u times\n", slow_ms, number,
 		slow.frames * (double)SDL_GetPerformanceFrequency() / (double)(now - slow.since),
 		(double)FRAME_RATE_NUMERATOR / FRAME_RATE_DENOMINATOR, slow.drawn, slow.frames, slow.shown, slow.sound_empty);
 	slow.since = now;
@@ -2493,7 +2501,11 @@ static void on_frame_done(void)
 	const bool hurried = false;
 #endif
 
+#ifdef SIMPSONS_CONSOLE
+	if (slow_ms > 0 || console_settings.fps)
+#else
 	if (slow_ms > 0)
+#endif
 		slow_frame(frame_drawn, number);
 	read_events();
 #ifdef SIMPSONS_CONSOLE
